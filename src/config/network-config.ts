@@ -1,6 +1,9 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+import { ZDKChain, ZDKNetwork } from "@zoralabs/zdk";
+import { NetworkInfo } from "@zoralabs/zdk/dist/queries/queries-sdk";
+
 export enum SupportedNetworks {
     ETHEREUM_MAINNET = "ethereum_mainnet",
     ETHEREUM_SEPOLIA = "ethereum_sepolia",
@@ -10,9 +13,12 @@ export enum SupportedNetworks {
     BASE_GOERLI = "base_goerli",
     ZORA_MAINNET = "zora_mainnet",
     ZORA_GOERLI = "zora_goerli",
+    LOCALHOST = "localhost",
+    UNDEFINED = "_undefined_",
 }
 
 interface INetworkUrls {
+    ETHEREUM_MAINNET: string;
     ETHEREUM_SEPOLIA: string;
     OPTIMISM_MAINNET: string;
     OPTIMISM_GOERLI: string;
@@ -24,6 +30,7 @@ interface INetworkUrls {
 }
 
 export const network_urls: INetworkUrls = {
+    ETHEREUM_MAINNET: process.env.ETHEREUM_MAINNET as string,
     ETHEREUM_SEPOLIA: process.env.ETHEREUM_SEPOLIA as string,
     OPTIMISM_MAINNET: process.env.OPTIMISM_MAINNET as string,
     OPTIMISM_GOERLI: process.env.OPTIMISM_GOERLI as string,
@@ -35,6 +42,7 @@ export const network_urls: INetworkUrls = {
 };
 
 const explorer_urls = {
+    ETHEREUM_MAINNET: "https://etherscan.io/",
     ETHEREUM_SEPOLIA: "https://sepolia.etherscan.io/",
     OPTIMISM_MAINNET: "https://optimistic.etherscan.io/",
     OPTIMISM_GOERLI: "https://goerli-optimism.etherscan.io/",
@@ -50,6 +58,8 @@ export const networkUrl = (
     fallback: boolean = true
 ): string => {
     switch (network) {
+        case SupportedNetworks.ETHEREUM_MAINNET:
+            return network_urls.ETHEREUM_MAINNET;
         case SupportedNetworks.ETHEREUM_SEPOLIA:
             return network_urls.ETHEREUM_SEPOLIA;
         case SupportedNetworks.OPTIMISM_MAINNET:
@@ -75,6 +85,8 @@ export const addressExplorerUrl = (
     fallback: boolean = true
 ): string => {
     switch (network) {
+        case SupportedNetworks.ETHEREUM_MAINNET:
+            return `<a href="${explorer_urls.ETHEREUM_MAINNET}/address/${address}">${address}</a>`;
         case SupportedNetworks.ETHEREUM_SEPOLIA:
             return `<a href="${explorer_urls.ETHEREUM_SEPOLIA}/address/${address}">${address}</a>`;
         case SupportedNetworks.OPTIMISM_MAINNET:
@@ -94,4 +106,73 @@ export const addressExplorerUrl = (
                 ? `<a href="${explorer_urls.LOCALHOST}/address/${address}">${address}</a>`
                 : address;
     }
+};
+
+export const formatDisplayNetwork = (network: SupportedNetworks): string => {
+    switch (network) {
+        case SupportedNetworks.ETHEREUM_MAINNET:
+            return "Ethereum Mainnet";
+        case SupportedNetworks.ETHEREUM_SEPOLIA:
+            return "Ethereum Sepolia";
+        case SupportedNetworks.OPTIMISM_MAINNET:
+            return "Optimism Mainnet";
+        case SupportedNetworks.OPTIMISM_GOERLI:
+            return "Optimism Goerli";
+        case SupportedNetworks.BASE_MAINNET:
+            return "Base Mainnet";
+        case SupportedNetworks.BASE_GOERLI:
+            return "Base Goerli";
+        case SupportedNetworks.ZORA_MAINNET:
+            return "Zora Mainnet";
+        case SupportedNetworks.ZORA_GOERLI:
+            return "Zora Goerli";
+        default:
+            return "Localhost";
+    }
+};
+
+export const supportedToZdkNetwork = (
+    network: SupportedNetworks
+): NetworkInfo | null => {
+    let zdkNetwork: ZDKNetwork;
+    let zdkChain: ZDKChain;
+
+    switch (network) {
+        case SupportedNetworks.ETHEREUM_MAINNET:
+            zdkNetwork = ZDKNetwork.Ethereum;
+            zdkChain = ZDKChain.Mainnet;
+            break;
+        case SupportedNetworks.ETHEREUM_SEPOLIA:
+            zdkNetwork = ZDKNetwork.Ethereum;
+            zdkChain = ZDKChain.Sepolia;
+            break;
+        case SupportedNetworks.OPTIMISM_MAINNET:
+            zdkNetwork = ZDKNetwork.Optimism;
+            zdkChain = ZDKChain.OptimismMainnet;
+            break;
+        case SupportedNetworks.OPTIMISM_GOERLI:
+            zdkNetwork = ZDKNetwork.Optimism;
+            zdkChain = ZDKChain.OptimismGoerli;
+            break;
+        case SupportedNetworks.BASE_MAINNET:
+            zdkNetwork = ZDKNetwork.Base;
+            zdkChain = ZDKChain.BaseMainnet;
+            break;
+        case SupportedNetworks.BASE_GOERLI:
+            zdkNetwork = ZDKNetwork.Base;
+            zdkChain = ZDKChain.BaseGoerli;
+            break;
+        case SupportedNetworks.ZORA_MAINNET:
+            zdkNetwork = ZDKNetwork.Zora;
+            zdkChain = ZDKChain.ZoraMainnet;
+            break;
+        case SupportedNetworks.ZORA_GOERLI:
+            zdkNetwork = ZDKNetwork.Zora;
+            zdkChain = ZDKChain.ZoraGoerli;
+            break;
+        default:
+            return null;
+    }
+
+    return { network: zdkNetwork, chain: zdkChain };
 };

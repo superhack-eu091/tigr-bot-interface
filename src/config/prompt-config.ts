@@ -18,4 +18,6 @@ export const PROMPT_NETWORK = (network: string): string =>
     `Current network: ${network}`;
 export const UNDEFINED_NETWORK = `The network is currently undefined. Please set your network after typing ${chain_command_references.SET_NETWORK}`;
 export const INVALID_NETWORK = `Invalid network. Please set your network after typing ${chain_command_references.SET_NETWORK}`;
-    
+
+// Error Handling Prompts
+export const QUERY_FAILED = "Something went wrong. Query message is undefined.";
