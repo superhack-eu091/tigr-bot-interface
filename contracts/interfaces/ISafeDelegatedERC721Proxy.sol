@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-interface NFTProxyInterface {
+interface ISafeDelegatedERC721Proxy {
     function canSellNFT(
         address owning_user_address,
         address address_of_NFT

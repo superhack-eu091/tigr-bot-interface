@@ -212,7 +212,6 @@ const setAccount = (
 
     // Verify the Ethereum address was provided.
     if (match === null) {
-        // console.log("3");
         sendTelegramMessage(msg, INVALID_ETH_ADDRESS);
         return;
     }
@@ -228,7 +227,6 @@ const setAccount = (
             },
         });
     } else {
-        // console.log(verbose, "4");
         if (verbose) sendTelegramMessage(msg, INVALID_ETH_ADDRESS);
     }
 };
@@ -247,7 +245,6 @@ const updateAccount = async (
 
     // Verify the Ethereum address was provided.
     if (match === null) {
-        // console.log("5");
         sendTelegramMessage(msg, INVALID_ETH_ADDRESS);
         return;
     }
@@ -277,7 +274,6 @@ const updateAccount = async (
             }
         );
     } else {
-        // console.log(verbose, "6");
         if (verbose) sendTelegramMessage(msg, INVALID_ETH_ADDRESS);
     }
 };
