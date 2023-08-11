@@ -179,8 +179,14 @@ const renderNftInlineKeyboard = ({
                 SupportedTrendingPeriods._6HR,
                 selected_trending_period
             ),
+        ],
+        [
             keyboardTrendingPeriodButton(
                 SupportedTrendingPeriods._24HR,
+                selected_trending_period
+            ),
+            keyboardTrendingPeriodButton(
+                SupportedTrendingPeriods._1WK,
                 selected_trending_period
             ),
         ],

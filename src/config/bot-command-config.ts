@@ -1,33 +1,9 @@
-export interface ILoadConfig {
-    account: string;
-    network: string;
-}
-
-interface IBaseCommands {
-    START: RegExp;
-    LOAD_CONFIG: RegExp;
-}
-
-interface IChainCommands {
-    GET_ACCOUNT: RegExp;
-    SET_ACCOUNT: RegExp;
-    GET_NETWORK: RegExp;
-    SET_NETWORK: RegExp;
-    ACCOUNT_BALANCE: RegExp;
-}
-
-interface IBaseCommandReferences {
-    START: string;
-    LOAD_CONFIG: string;
-}
-
-interface IChainCommandReferences {
-    GET_ACCOUNT: string;
-    SET_ACCOUNT: string;
-    GET_NETWORK: string;
-    SET_NETWORK: string;
-    ACCOUNT_BALANCE: string;
-}
+import {
+    IBaseCommands,
+    IChainCommands,
+    IBaseCommandReferences,
+    IChainCommandReferences,
+} from "./types/bot-types";
 
 export const base_commands: IBaseCommands = {
     START: /\/start/,

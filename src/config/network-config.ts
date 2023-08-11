@@ -1,12 +1,14 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+import { INetworkUrls } from "./types/network-types";
 import { ZDKChain, ZDKNetwork } from "@zoralabs/zdk";
 import { NetworkInfo } from "@zoralabs/zdk/dist/queries/queries-sdk";
 
 export enum SupportedNetworks {
     ETHEREUM_MAINNET = "ethereum_mainnet",
     ETHEREUM_SEPOLIA = "ethereum_sepolia",
+    ETHERUM_GOERLI = "ethereum_goerli",
     OPTIMISM_MAINNET = "optimism_mainnet",
     OPTIMISM_GOERLI = "optimism_goerli",
     BASE_MAINNET = "base_mainnet",
@@ -17,21 +19,10 @@ export enum SupportedNetworks {
     UNDEFINED = "_undefined_",
 }
 
-interface INetworkUrls {
-    ETHEREUM_MAINNET: string;
-    ETHEREUM_SEPOLIA: string;
-    OPTIMISM_MAINNET: string;
-    OPTIMISM_GOERLI: string;
-    BASE_MAINNET: string;
-    BASE_GOERLI: string;
-    ZORA_MAINNET: string;
-    ZORA_GOERLI: string;
-    LOCALHOST: string;
-}
-
 export const network_urls: INetworkUrls = {
     ETHEREUM_MAINNET: process.env.ETHEREUM_MAINNET as string,
     ETHEREUM_SEPOLIA: process.env.ETHEREUM_SEPOLIA as string,
+    ETHEREUM_GOERLI: process.env.ETHEREUM_GOERLI as string,
     OPTIMISM_MAINNET: process.env.OPTIMISM_MAINNET as string,
     OPTIMISM_GOERLI: process.env.OPTIMISM_GOERLI as string,
     BASE_MAINNET: process.env.BASE_MAINNET as string,
@@ -44,6 +35,7 @@ export const network_urls: INetworkUrls = {
 const explorer_urls = {
     ETHEREUM_MAINNET: "https://etherscan.io/",
     ETHEREUM_SEPOLIA: "https://sepolia.etherscan.io/",
+    ETHEREUM_GOERLI: "https://goerli.etherscan.io/",
     OPTIMISM_MAINNET: "https://optimistic.etherscan.io/",
     OPTIMISM_GOERLI: "https://goerli-optimism.etherscan.io/",
     BASE_MAINNET: "https://base.blockscout.com/",
@@ -62,6 +54,8 @@ export const networkUrl = (
             return network_urls.ETHEREUM_MAINNET;
         case SupportedNetworks.ETHEREUM_SEPOLIA:
             return network_urls.ETHEREUM_SEPOLIA;
+        case SupportedNetworks.ETHERUM_GOERLI:
+            return network_urls.ETHEREUM_GOERLI;
         case SupportedNetworks.OPTIMISM_MAINNET:
             return network_urls.OPTIMISM_MAINNET;
         case SupportedNetworks.OPTIMISM_GOERLI:
@@ -89,6 +83,8 @@ export const addressExplorerUrl = (
             return `<a href="${explorer_urls.ETHEREUM_MAINNET}/address/${address}">${address}</a>`;
         case SupportedNetworks.ETHEREUM_SEPOLIA:
             return `<a href="${explorer_urls.ETHEREUM_SEPOLIA}/address/${address}">${address}</a>`;
+        case SupportedNetworks.ETHERUM_GOERLI:
+            return `<a href="${explorer_urls.ETHEREUM_GOERLI}/address/${address}">${address}</a>`;
         case SupportedNetworks.OPTIMISM_MAINNET:
             return `<a href="${explorer_urls.OPTIMISM_MAINNET}/address/${address}">${address}</a>`;
         case SupportedNetworks.OPTIMISM_GOERLI:
@@ -114,6 +110,8 @@ export const formatDisplayNetwork = (network: SupportedNetworks): string => {
             return "Ethereum Mainnet";
         case SupportedNetworks.ETHEREUM_SEPOLIA:
             return "Ethereum Sepolia";
+        case SupportedNetworks.ETHERUM_GOERLI:
+            return "Ethereum Goerli";
         case SupportedNetworks.OPTIMISM_MAINNET:
             return "Optimism Mainnet";
         case SupportedNetworks.OPTIMISM_GOERLI:
@@ -131,7 +129,7 @@ export const formatDisplayNetwork = (network: SupportedNetworks): string => {
     }
 };
 
-export const supportedToZdkNetwork = (
+export const supportedNetworkToZdkNetwork = (
     network: SupportedNetworks
 ): NetworkInfo | null => {
     let zdkNetwork: ZDKNetwork;
@@ -145,6 +143,10 @@ export const supportedToZdkNetwork = (
         case SupportedNetworks.ETHEREUM_SEPOLIA:
             zdkNetwork = ZDKNetwork.Ethereum;
             zdkChain = ZDKChain.Sepolia;
+            break;
+        case SupportedNetworks.ETHERUM_GOERLI:
+            zdkNetwork = ZDKNetwork.Ethereum;
+            zdkChain = ZDKChain.Goerli;
             break;
         case SupportedNetworks.OPTIMISM_MAINNET:
             zdkNetwork = ZDKNetwork.Optimism;

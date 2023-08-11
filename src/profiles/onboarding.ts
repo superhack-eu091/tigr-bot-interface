@@ -4,11 +4,8 @@ import {
     telegram_bot as bot,
     sendTelegramMessage,
 } from "../utils/telegram-bot";
-import {
-    base_commands,
-    chain_commands,
-    ILoadConfig,
-} from "../config/bot-command-config";
+import { base_commands, chain_commands } from "../config/bot-command-config";
+import { ILoadConfig } from "../config/types/bot-types";
 import {
     validateEthAddress,
     getEthBalance,
