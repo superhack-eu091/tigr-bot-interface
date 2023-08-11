@@ -234,9 +234,9 @@ const renderTrendingNftCollectionsTable = (
     // const headers = [" Collection ", "Volume", "Period", " Avg Price (USDC) "];
     const headers = [
         "  Address   ",
-        "   Avg Price    ",
+        "Avg Price (USD) ",
         "Floor (ETH)",
-        "      Price       ",
+        "   Price (USD)    ",
         "Total Sales",
     ];
 
