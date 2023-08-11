@@ -1,4 +1,5 @@
 import fs from "fs";
+import Safe from "@safe-global/protocol-kit";
 import { Message, InlineKeyboardButton } from "node-telegram-bot-api";
 import {
     telegram_bot as bot,
@@ -12,6 +13,7 @@ import {
     getEthAddress,
     setEthAddress,
 } from "../utils/account-utils";
+import { setWalletAddress } from "../utils/safe-utils";
 import {
     GREETING,
     INVALID_ETH_ADDRESS,
@@ -23,6 +25,8 @@ import {
 import {
     SupportedNetworks,
     addressExplorerUrl,
+    formatDisplayNetwork,
+    chainIdToSupportedNetwork,
 } from "../config/network-config";
 import {
     getNetwork,
@@ -30,66 +34,23 @@ import {
     isSupportedNetwork,
 } from "../utils/network-utils";
 import { truncateAddress } from "../utils/address-utils";
+import { deploySafe } from "../utils/safe-utils";
+import { SafeInfo } from "../config/types/safe-types";
 
 const userInputState: Record<number, string> = {};
 let messageId: number | undefined = undefined;
 
 export const runOnboarding = (
-    userEthAddresses: Record<number, string>,
+    userWalletAddress: Record<number, string>,
     activeNetwork: Record<number, SupportedNetworks>
 ) => {
-    // Load account configuration file.
-    bot.onText(
-        base_commands.LOAD_CONFIG,
-        (msg: Message, match: RegExpExecArray | null) => {
-            if (match === null) {
-                sendTelegramMessage(msg, "Error loading configuration file.");
-                return;
-            }
-
-            // Load and set configuration.
-            const filePath = "./src/config/user-configs.json";
-
-            fs.readFile(filePath, "utf8", (err, data) => {
-                if (err) {
-                    console.log(err);
-                    sendTelegramMessage(
-                        msg,
-                        "Error loading configuration file."
-                    );
-                    return;
-                }
-
-                const user_configs: { [key: string]: ILoadConfig } =
-                    JSON.parse(data);
-
-                // Get the configuration selected by the user.
-                const config_selected: string = match[1];
-                const config = user_configs[config_selected];
-
-                // Set the Ethereum address.
-                if (validateEthAddress(config.account)) {
-                    setEthAddress(msg, userEthAddresses, config.account);
-                    sendTelegramMessage(
-                        msg,
-                        "Your Ethereum address has been saved!"
-                    );
-                } else {
-                    sendTelegramMessage(msg, INVALID_ETH_ADDRESS);
-                }
-
-                // Set the network.
-                setNetwork(msg, activeNetwork, config.network);
-                sendTelegramMessage(msg, `Your network has been saved!`);
-            });
-        }
-    );
-
     // Start the user journey.
     bot.onText(base_commands.START, (msg) => {
+        loadUserConfigs(msg, userWalletAddress);
+
         bot.sendMessage(msg.chat.id, GREETING, {
             reply_markup: {
-                inline_keyboard: renderInlineKeyboard(msg, userEthAddresses),
+                inline_keyboard: renderInlineKeyboard(msg, userWalletAddress),
             },
         }).then((msg: Message) => {
             messageId = msg.message_id;
@@ -98,7 +59,7 @@ export const runOnboarding = (
 
     // Get the active wallet address.
     bot.onText(chain_commands.GET_ACCOUNT, (msg: Message) => {
-        getAccount(msg, userEthAddresses, activeNetwork, {
+        getAccount(msg, userWalletAddress, activeNetwork, {
             strict: true,
             verbose: true,
         });
@@ -108,7 +69,7 @@ export const runOnboarding = (
     bot.onText(
         chain_commands.SET_ACCOUNT,
         (msg: Message, match: RegExpExecArray | null) =>
-            setAccount(msg, userEthAddresses, match)
+            setAccount(msg, userWalletAddress, match)
     );
 
     // Get the active network.
@@ -154,7 +115,7 @@ export const runOnboarding = (
     bot.onText(chain_commands.ACCOUNT_BALANCE, async (msg) => {
         const balance: string | null | undefined = await getEthBalance(
             msg,
-            userEthAddresses
+            userWalletAddress
         );
 
         if (balance === undefined) {
@@ -173,16 +134,9 @@ export const runOnboarding = (
 
         const chatId = query.message.chat.id;
 
-        if (query.data === "add_account") {
+        if (query.data === "init_aa_wallet") {
             bot.sendMessage(chatId, "Please enter the wallet address:");
-            userInputState[chatId] = "awaiting_address";
-        } else if (query.data!.startsWith("set_active_account_")) {
-            const query_data_bits: Array<string> = query.data!.split("_");
-            updateAccount(
-                query.message,
-                userEthAddresses,
-                query_data_bits[query_data_bits.length - 1]
-            );
+            userInputState[chatId] = "awaiting_eoa_address";
         }
     });
 
@@ -191,41 +145,48 @@ export const runOnboarding = (
         const chatId = msg.chat.id;
 
         // Check if we're waiting for user's email address
-        if (userInputState[chatId] === "awaiting_address") {
+        if (userInputState[chatId] === "awaiting_eoa_address") {
             const address = msg.text as string;
 
-            // Validate the Ethereum address and save it.
-            updateAccount(msg, userEthAddresses, address, {
+            // Create a new AA wallet for the user.
+            updateAccount(msg, userWalletAddress, activeNetwork, address, {
                 updateUserConfig: true,
             });
-
-            // Reset the state
-            delete userInputState[chatId];
         }
+
+        // Reset the state
+        delete userInputState[chatId];
     });
 };
 
 const renderInlineKeyboard = (
     msg: Message,
-    userEthAddresses: Record<number, string>
+    userWalletAddress: Record<number, string>
 ): InlineKeyboardButton[][] => {
-    const account: string | null = getEthAddress(msg, userEthAddresses);
+    const account: string | null = getEthAddress(msg, userWalletAddress);
 
-    return [
-        [...loadUserConfigs(account)],
-        [{ text: "🕸️  Set Network  🕸️", callback_data: "NONE" }],
-        [{ text: "🔍  Explore NFTs  🔍", callback_data: "nft_profile" }],
-        [{ text: `Add Wallet`, callback_data: "add_account" }],
-    ];
+    return account !== null
+        ? [
+              ...loadUserConfigs(msg, userWalletAddress),
+              [{ text: "🔍  Explore NFTs  🔍", callback_data: "nft_profile" }],
+          ]
+        : [
+              [
+                  {
+                      text: "❗🏁  Create Wallet  🏁❗",
+                      callback_data: "init_aa_wallet",
+                  },
+              ],
+          ];
 };
 
 const getAccount = (
     msg: Message,
-    userEthAddresses: Record<number, string>,
+    userWalletAddress: Record<number, string>,
     activeNetwork: Record<number, string>,
     { strict, verbose }: { strict?: boolean; verbose?: boolean }
 ) => {
-    const address: string | null = getEthAddress(msg, userEthAddresses, {
+    const address: string | null = getEthAddress(msg, userWalletAddress, {
         strict: strict,
     });
     const network: string | null = getNetwork(msg, activeNetwork);
@@ -243,7 +204,7 @@ const getAccount = (
 
 const setAccount = (
     msg: Message,
-    userEthAddresses: Record<number, string>,
+    userWalletAddress: Record<number, string>,
     match: RegExpExecArray | string | null,
     verbose: boolean = true
 ) => {
@@ -251,6 +212,7 @@ const setAccount = (
 
     // Verify the Ethereum address was provided.
     if (match === null) {
+        // console.log("3");
         sendTelegramMessage(msg, INVALID_ETH_ADDRESS);
         return;
     }
@@ -259,20 +221,22 @@ const setAccount = (
     let address: string | null = match !== null ? match : null;
 
     if (validateEthAddress(address)) {
-        setEthAddress(msg, userEthAddresses, address as string);
+        setEthAddress(msg, userWalletAddress, address as string);
         bot.sendMessage(msg.chat.id, GREETING, {
             reply_markup: {
-                inline_keyboard: renderInlineKeyboard(msg, userEthAddresses),
+                inline_keyboard: renderInlineKeyboard(msg, userWalletAddress),
             },
         });
     } else {
+        // console.log(verbose, "4");
         if (verbose) sendTelegramMessage(msg, INVALID_ETH_ADDRESS);
     }
 };
 
-const updateAccount = (
+const updateAccount = async (
     msg: Message,
-    userEthAddresses: Record<number, string>,
+    userWalletAddress: Record<number, string>,
+    activeNetwork: Record<number, SupportedNetworks>,
     match: RegExpExecArray | string | null,
     {
         verbose = true,
@@ -283,6 +247,7 @@ const updateAccount = (
 
     // Verify the Ethereum address was provided.
     if (match === null) {
+        // console.log("5");
         sendTelegramMessage(msg, INVALID_ETH_ADDRESS);
         return;
     }
@@ -291,19 +256,28 @@ const updateAccount = (
     let address: string | null = match !== null ? match : null;
 
     if (validateEthAddress(address)) {
-        setEthAddress(msg, userEthAddresses, address as string);
+        const safe: SafeInfo = await deploySafe(
+            msg,
+            [address] as Array<string>,
+            userWalletAddress,
+            activeNetwork
+        );
+        setWalletAddress(msg, userWalletAddress, safe.address);
+
+        if (updateUserConfig)
+            saveUserConfigs(safe.eoaOwner, safe.address, safe.chainId);
+
         bot.editMessageReplyMarkup(
             {
-                inline_keyboard: renderInlineKeyboard(msg, userEthAddresses),
+                inline_keyboard: renderInlineKeyboard(msg, userWalletAddress),
             },
             {
                 chat_id: msg.chat.id,
                 message_id: messageId,
             }
         );
-
-        if (updateUserConfig) saveUserConfigs(address!);
     } else {
+        // console.log(verbose, "6");
         if (verbose) sendTelegramMessage(msg, INVALID_ETH_ADDRESS);
     }
 };
@@ -317,48 +291,56 @@ const parseMatchExpression = (match: RegExpExecArray | string | null) => {
 };
 
 const loadUserConfigs = (
-    activeEthAddress: string | null
-): InlineKeyboardButton[] => {
+    msg: Message,
+    userWalletAddress: Record<number, string>
+): InlineKeyboardButton[][] => {
     // Load and set configuration.
     const filePath = "./src/config/user-configs.json";
-    let activeAccountSetFlag: boolean = false;
 
     // Read the configuration file.
     const user_configs: { [key: string]: ILoadConfig } =
         readUserConfigs(filePath);
 
     // Return the inline keyboard buttons for the user's accounts.
-    const keyboardButtons: InlineKeyboardButton[] = Object.keys(
+    const keyboardButtons: InlineKeyboardButton[][] = Object.keys(
         user_configs
-    ).map((key) => {
-        const isActiveEthAddress: boolean =
-            activeEthAddress === user_configs[key].account;
-
-        if (isActiveEthAddress) {
-            activeEthAddress = null;
-            activeAccountSetFlag = true;
+    ).map((key, idx) => {
+        if (idx === 0) {
+            setEthAddress(
+                msg,
+                userWalletAddress,
+                user_configs[key].walletAddress
+            );
         }
 
-        return {
-            text: isActiveEthAddress
-                ? `💚  ${truncateAddress(user_configs[key].account)}`
-                : truncateAddress(user_configs[key].account),
-            callback_data: `set_active_account_${user_configs[key].account}`,
-        };
-    });
-
-    // Conditionally add the active wallet address.
-    if (activeEthAddress !== null) {
         return [
             {
-                text: truncateAddress(activeEthAddress),
-                callback_data: `set_active_account_${activeEthAddress}`,
+                text: `💰 ${truncateAddress(user_configs[key].walletAddress)}`,
+                callback_data: `set_active_account_${user_configs[key].walletAddress}`,
             },
-            ...keyboardButtons,
+            {
+                text: `🌐 ${formatDisplayNetwork(
+                    user_configs[key].network as SupportedNetworks
+                )}`,
+                callback_data: `set_active_network_${user_configs[key].network}`,
+            },
         ];
-    } else {
-        return keyboardButtons;
-    }
+    });
+
+    return keyboardButtons;
+
+    // // Conditionally add the active wallet address.
+    // if (activeWalletAddress !== null) {
+    //     return [
+    //         {
+    //             text: truncateAddress(activeWalletAddress),
+    //             callback_data: `set_active_account_${activeWalletAddress}`,
+    //         },
+    //         ...keyboardButtons,
+    //     ];
+    // } else {
+    //     return keyboardButtons;
+    // }
 };
 
 function readUserConfigs(filePath: string): any {
@@ -366,17 +348,23 @@ function readUserConfigs(filePath: string): any {
     return JSON.parse(data);
 }
 
-const saveUserConfigs = (address: string) => {
+const saveUserConfigs = (
+    eoaAddress: string,
+    walletAddress: string,
+    chainId: number
+) => {
     const filePath = "./src/config/user-configs.json";
+    const network: string = chainIdToSupportedNetwork(chainId);
 
     // Read the configuration file.
     const user_configs = readUserConfigs(filePath);
 
     const jsonString = JSON.stringify({
         ...{
-            [address]: {
-                account: address,
-                network: "",
+            [`${eoaAddress}_${network}`]: {
+                eoaAddress: eoaAddress,
+                network: network,
+                walletAddress: walletAddress,
             },
         },
         ...user_configs,

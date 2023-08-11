@@ -1,10 +1,7 @@
 {
-    "Debug": {
-        "account": "0x9c79D344a31334Cab52009101949EbAD5ddF3C0E",
-        "network": "ethereum_sepolia"
-    },
-    "Wallet 1": {
-        "account": "0x2b6115F2E3E134eae2F8fa41A0cda87093aD379F",
-        "network": "ethereum_sepolia"
+    "0x976EA74026E726554dB657fA54763abd0C3a0aa9_optimism_goerli": {
+        "eoaAddress": "0x976EA74026E726554dB657fA54763abd0C3a0aa9",
+        "network": "optimism_goerli",
+        "walletAddress": "0x521bb64747D6ABD837ecFCE2761C859E236178B5"
     }
 }

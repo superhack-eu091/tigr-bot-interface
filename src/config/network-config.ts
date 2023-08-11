@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+import { ethers } from "ethers";
 import { INetworkUrls } from "./types/network-types";
 import { ZDKChain, ZDKNetwork } from "@zoralabs/zdk";
 import { NetworkInfo } from "@zoralabs/zdk/dist/queries/queries-sdk";
@@ -20,16 +21,72 @@ export enum SupportedNetworks {
 }
 
 export const network_urls: INetworkUrls = {
-    ETHEREUM_MAINNET: process.env.ETHEREUM_MAINNET as string,
-    ETHEREUM_SEPOLIA: process.env.ETHEREUM_SEPOLIA as string,
-    ETHEREUM_GOERLI: process.env.ETHEREUM_GOERLI as string,
-    OPTIMISM_MAINNET: process.env.OPTIMISM_MAINNET as string,
-    OPTIMISM_GOERLI: process.env.OPTIMISM_GOERLI as string,
-    BASE_MAINNET: process.env.BASE_MAINNET as string,
-    BASE_GOERLI: process.env.BASE_GOERLI as string,
-    ZORA_MAINNET: process.env.ZORA_MAINNET as string,
-    ZORA_GOERLI: process.env.ZORA_GOERLI as string,
+    ETHEREUM_MAINNET: process.env.ETHEREUM_MAINNET_RPC_URL as string,
+    ETHEREUM_SEPOLIA: process.env.ETHEREUM_SEPOLIA_RPC_URL as string,
+    ETHEREUM_GOERLI: process.env.ETHEREUM_GOERLI_RPC_URL as string,
+    OPTIMISM_MAINNET: process.env.OPTIMISM_MAINNET_RPC_URL as string,
+    OPTIMISM_GOERLI: process.env.OPTIMISM_GOERLI_RPC_URL as string,
+    BASE_MAINNET: process.env.BASE_MAINNET_RPC_URL as string,
+    BASE_GOERLI: process.env.BASE_GOERLI_RPC_URL as string,
+    ZORA_MAINNET: process.env.ZORA_MAINNET_RPC_URL as string,
+    ZORA_GOERLI: process.env.ZORA_GOERLI_RPC_URL as string,
     LOCALHOST: "http://localhost:8545",
+};
+
+export const networkProvider = (
+    network: string
+): ethers.providers.JsonRpcProvider | null => {
+    let provider: ethers.providers.JsonRpcProvider | null = null;
+
+    switch (network) {
+        case SupportedNetworks.ETHEREUM_MAINNET:
+            provider = new ethers.providers.JsonRpcProvider(
+                network_urls.ETHEREUM_MAINNET
+            );
+            return provider;
+        case SupportedNetworks.ETHEREUM_SEPOLIA:
+            provider = new ethers.providers.JsonRpcProvider(
+                network_urls.ETHEREUM_SEPOLIA
+            );
+            return provider;
+        case SupportedNetworks.ETHERUM_GOERLI:
+            provider = new ethers.providers.JsonRpcProvider(
+                network_urls.ETHEREUM_GOERLI
+            );
+            return provider;
+        case SupportedNetworks.OPTIMISM_MAINNET:
+            provider = new ethers.providers.JsonRpcProvider(
+                network_urls.OPTIMISM_MAINNET
+            );
+            return provider;
+        case SupportedNetworks.OPTIMISM_GOERLI:
+            provider = new ethers.providers.JsonRpcProvider(
+                network_urls.OPTIMISM_GOERLI
+            );
+            return provider;
+        case SupportedNetworks.BASE_MAINNET:
+            provider = new ethers.providers.JsonRpcProvider(
+                network_urls.BASE_MAINNET
+            );
+            return provider;
+        case SupportedNetworks.BASE_GOERLI:
+            provider = new ethers.providers.JsonRpcProvider(
+                network_urls.BASE_GOERLI
+            );
+            return provider;
+        case SupportedNetworks.ZORA_MAINNET:
+            provider = new ethers.providers.JsonRpcProvider(
+                network_urls.ZORA_MAINNET
+            );
+            return provider;
+        case SupportedNetworks.ZORA_GOERLI:
+            provider = new ethers.providers.JsonRpcProvider(
+                network_urls.ZORA_GOERLI
+            );
+            return provider;
+        default:
+            return provider;
+    }
 };
 
 const explorer_urls = {
@@ -177,4 +234,33 @@ export const supportedNetworkToZdkNetwork = (
     }
 
     return { network: zdkNetwork, chain: zdkChain };
+};
+
+export const chainIdToSupportedNetwork = (
+    chainId: number
+): SupportedNetworks => {
+    switch (chainId) {
+        case 1:
+            return SupportedNetworks.ETHEREUM_MAINNET;
+        case 11155111:
+            return SupportedNetworks.ETHEREUM_SEPOLIA;
+        case 5:
+            return SupportedNetworks.ETHERUM_GOERLI;
+        case 10:
+            return SupportedNetworks.OPTIMISM_MAINNET;
+        case 420:
+            return SupportedNetworks.OPTIMISM_GOERLI;
+        case 8453:
+            return SupportedNetworks.BASE_MAINNET;
+        case 84531:
+            return SupportedNetworks.BASE_GOERLI;
+        case 7777777:
+            return SupportedNetworks.ZORA_MAINNET;
+        case 999:
+            return SupportedNetworks.ZORA_GOERLI;
+        case 31337:
+            return SupportedNetworks.LOCALHOST;
+        default:
+            return SupportedNetworks.UNDEFINED;
+    }
 };

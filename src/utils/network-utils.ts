@@ -7,13 +7,13 @@ import { SupportedNetworks } from "../config/network-config";
 
 export const getProvider = (
     network: SupportedNetworks
-): ethers.JsonRpcProvider | null => {
+): ethers.providers.JsonRpcProvider | null => {
     const rpc_url = process.env[network.toUpperCase() + "_RPC_URL"];
     if (rpc_url === undefined) {
         return null;
     }
 
-    const provider = new ethers.JsonRpcProvider(rpc_url);
+    const provider = new ethers.providers.JsonRpcProvider(rpc_url);
 
     return provider;
 };

@@ -8,7 +8,9 @@ import { INVALID_ETH_ADDRESS } from "../config/prompt-config";
 
 export const validateEthAddress = (address: string | null): boolean => {
     return (
-        address !== null && address !== undefined && ethers.isAddress(address)
+        address !== null &&
+        address !== undefined &&
+        ethers.utils.isAddress(address)
     );
 };
 
@@ -22,7 +24,7 @@ export const setEthAddress = (
     address: string
 ) => {
     const chatId = msg.chat.id;
-    addressesRecord[chatId] = ethers.getAddress(address);
+    addressesRecord[chatId] = ethers.utils.getAddress(address);
 };
 
 export const getEthAddress = (
@@ -48,7 +50,7 @@ export const getEthBalance = async (
         return null;
     } else {
         // Get the provider for the network.
-        const provider: ethers.JsonRpcProvider | null = getProvider(
+        const provider: ethers.providers.JsonRpcProvider | null = getProvider(
             SupportedNetworks.ETHEREUM_SEPOLIA
         );
 
@@ -60,6 +62,6 @@ export const getEthBalance = async (
         // Get the balance of the address.
         const balance = await provider.getBalance(address as string);
 
-        return ethers.formatEther(balance);
+        return ethers.utils.formatEther(balance);
     }
 };

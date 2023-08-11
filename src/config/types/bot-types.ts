@@ -1,6 +1,7 @@
 export interface ILoadConfig {
-    account: string;
+    eoaAddress: string;
     network: string;
+    walletAddress: string;
 }
 
 export interface IBaseCommands {

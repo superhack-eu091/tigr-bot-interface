@@ -1,23 +1,26 @@
 {
-  "name": "tsx-telegram-bot",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "@types/node": "^20.4.8",
-    "@zoralabs/zdk": "^2.4.0",
-    "dotenv": "^16.3.1",
-    "ethers": "^6.7.0",
-    "node-telegram-bot-api": "^0.61.0",
-    "typescript": "^5.1.6"
-  },
-  "devDependencies": {
-    "@types/node-telegram-bot-api": "^0.61.7"
-  }
+    "name": "tsx-telegram-bot",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "@safe-global/api-kit": "^1.3.0",
+        "@safe-global/protocol-kit": "^1.2.0",
+        "@safe-global/safe-core-sdk-types": "^2.2.0",
+        "@types/node": "^20.4.8",
+        "@zoralabs/zdk": "^2.4.0",
+        "dotenv": "^16.3.1",
+        "ethers": "^5.4.7",
+        "node-telegram-bot-api": "^0.61.0",
+        "typescript": "^5.1.6"
+    },
+    "devDependencies": {
+        "@types/node-telegram-bot-api": "^0.61.7"
+    }
 }

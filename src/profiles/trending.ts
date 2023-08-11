@@ -12,7 +12,6 @@ import {
     supportedToTrendingPeriodNumber,
 } from "../config/trending-config";
 import { truncateAddress } from "../utils/address-utils";
-import { escapeString } from "../utils/string-utils";
 import {
     CountableSaleWithToken,
     CountableSaleWithTokenAndVolume,
@@ -104,7 +103,7 @@ const collectNftSales = async (
             endDate: now.toISOString().split("T")[0],
         },
         priceFilter: {
-            minimumChainTokenPrice: "0.000000001",
+            // minimumChainTokenPrice: "0.000000001",
         },
     };
 
