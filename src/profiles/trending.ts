@@ -69,6 +69,7 @@ const initTrendingProfile = (
 
             bot.sendMessage(msg.chat.id, table, {
                 parse_mode: "HTML",
+                disable_web_page_preview: true,
             }).then((msg: Message) => {
                 messageId = msg.message_id;
             });
@@ -226,33 +227,68 @@ const sortUniqueElementsByCount = (
 };
 
 const renderTrendingNftCollectionsTable = (
-    trendingNftCollections: CountableSaleWithToken[],
+    trendingNftCollections: CountableSaleWithTokenAndVolume[],
     trendingPeriod: SupportedTrendingPeriods
 ): string => {
     // Generate the formatted table header
-    const headers = [" Collection ", "Volume", "Period", " Avg Price (USDC) "];
+    // const headers = [" Collection ", "Volume", "Period", " Avg Price (USDC) "];
+    const headers = [
+        "  Address   ",
+        "   Avg Price    ",
+        "Floor (ETH)",
+        "      Price       ",
+        "Total Sales",
+    ];
 
     console.log(trendingNftCollections[0]);
 
     // Get the padded table data
     const rows = trendingNftCollections.map((sale) => {
-        const saleCountFormatted = String(sale.count).padStart(3).padEnd(6);
-
-        const trendingPeriodFormatted = trendingPeriod.padStart(2).padEnd(6);
-
+        // Format Avg Price
         const usdcPrice = String(
             sale.sale.price!.usdcPrice!.decimal.toFixed(6)
         );
+
         const usdcPriceFormatted =
-            usdcPrice.split(".")[0].padStart(11, " ") +
+            usdcPrice.split(".")[0].padStart(9, " ") +
             "." +
-            usdcPrice.split(".")[1];
+            usdcPrice.split(".")[1].padEnd(6, "0");
+
+        // Format Floor Price
+        const floorPrice = String(
+            sale.aggregateStat.floorPrice
+                ? sale.aggregateStat.floorPrice!.toFixed(6)
+                : null
+        );
+
+        const floorPriceFormatted =
+            floorPrice !== "null"
+                ? floorPrice.split(".")[0].padStart(4, " ") +
+                  "." +
+                  floorPrice.split(".")[1].padEnd(6, "0")
+                : "N/A".padStart(6, " ").padEnd(11, " ");
+
+        // Format USDC Price
+        const volumePrice = String(
+            sale.aggregateStat.salesVolume.usdcPrice.toFixed(6)
+        );
+
+        const volumePriceFormatted =
+            volumePrice.split(".")[0].padStart(11, " ") +
+            "." +
+            volumePrice.split(".")[1].padEnd(6, "0");
+
+        // Format Total Sales
+        const volumeTotalSalesFormatted = String(
+            sale.aggregateStat.salesVolume.totalCount
+        ).padStart(11, " ");
 
         return [
             truncateAddress(sale.sale.collectionAddress),
-            saleCountFormatted,
-            trendingPeriodFormatted,
             usdcPriceFormatted,
+            floorPriceFormatted,
+            volumePriceFormatted,
+            volumeTotalSalesFormatted,
         ];
     });
 
@@ -264,8 +300,9 @@ const renderTrendingNftCollectionsTable = (
 
     // Generate the formatted table
     const table =
+        `<pre>|                  Collection                   |              Volume              |</pre>\n` +
         `<pre>| ${headers.join(" | ")} |</pre>\n` +
-        `<pre>| ------------ + ------ + ------ + ------------------ |</pre>\n` +
+        `<pre>| ------------ + ---------------- + ----------- + ------------------ + ----------- |</pre>\n` +
         rows.map((row) => `<pre>| ${row.join(" | ")} |</pre>`).join("\n") +
         "\n\n" +
         links.join("\n");
