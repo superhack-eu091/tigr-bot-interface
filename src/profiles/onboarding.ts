@@ -46,11 +46,15 @@ export const runOnboarding = (
 ) => {
     // Start the user journey.
     bot.onText(base_commands.START, (msg) => {
-        loadUserConfigs(msg, userWalletAddress);
+        loadUserConfigs(msg, userWalletAddress, activeNetwork);
 
         bot.sendMessage(msg.chat.id, GREETING, {
             reply_markup: {
-                inline_keyboard: renderInlineKeyboard(msg, userWalletAddress),
+                inline_keyboard: renderInlineKeyboard(
+                    msg,
+                    userWalletAddress,
+                    activeNetwork
+                ),
             },
         }).then((msg: Message) => {
             messageId = msg.message_id;
@@ -69,7 +73,7 @@ export const runOnboarding = (
     bot.onText(
         chain_commands.SET_ACCOUNT,
         (msg: Message, match: RegExpExecArray | null) =>
-            setAccount(msg, userWalletAddress, match)
+            setAccount(msg, userWalletAddress, activeNetwork, match)
     );
 
     // Get the active network.
@@ -161,14 +165,16 @@ export const runOnboarding = (
 
 const renderInlineKeyboard = (
     msg: Message,
-    userWalletAddress: Record<number, string>
+    userWalletAddress: Record<number, string>,
+    activeNetwork: Record<number, SupportedNetworks>
 ): InlineKeyboardButton[][] => {
     const account: string | null = getEthAddress(msg, userWalletAddress);
 
     return account !== null
         ? [
-              ...loadUserConfigs(msg, userWalletAddress),
+              ...loadUserConfigs(msg, userWalletAddress, activeNetwork),
               [{ text: "🔍  Explore NFTs  🔍", callback_data: "nft_profile" }],
+              [{ text: "🎫  Direct Buy", callback_data: "direct_nft_buy" }],
           ]
         : [
               [
@@ -205,6 +211,7 @@ const getAccount = (
 const setAccount = (
     msg: Message,
     userWalletAddress: Record<number, string>,
+    activeNetwork: Record<number, SupportedNetworks>,
     match: RegExpExecArray | string | null,
     verbose: boolean = true
 ) => {
@@ -223,7 +230,11 @@ const setAccount = (
         setEthAddress(msg, userWalletAddress, address as string);
         bot.sendMessage(msg.chat.id, GREETING, {
             reply_markup: {
-                inline_keyboard: renderInlineKeyboard(msg, userWalletAddress),
+                inline_keyboard: renderInlineKeyboard(
+                    msg,
+                    userWalletAddress,
+                    activeNetwork
+                ),
             },
         });
     } else {
@@ -252,6 +263,8 @@ const updateAccount = async (
     // Validate the Ethereum address and save it.
     let address: string | null = match !== null ? match : null;
 
+    console.log(activeNetwork);
+
     if (validateEthAddress(address)) {
         const safe: SafeInfo = await deploySafe(
             msg,
@@ -266,7 +279,11 @@ const updateAccount = async (
 
         bot.editMessageReplyMarkup(
             {
-                inline_keyboard: renderInlineKeyboard(msg, userWalletAddress),
+                inline_keyboard: renderInlineKeyboard(
+                    msg,
+                    userWalletAddress,
+                    activeNetwork
+                ),
             },
             {
                 chat_id: msg.chat.id,
@@ -288,7 +305,8 @@ const parseMatchExpression = (match: RegExpExecArray | string | null) => {
 
 const loadUserConfigs = (
     msg: Message,
-    userWalletAddress: Record<number, string>
+    userWalletAddress: Record<number, string>,
+    activeNetwork: Record<number, SupportedNetworks>
 ): InlineKeyboardButton[][] => {
     // Load and set configuration.
     const filePath = "./src/config/user-configs.json";
@@ -307,6 +325,7 @@ const loadUserConfigs = (
                 userWalletAddress,
                 user_configs[key].walletAddress
             );
+            setNetwork(msg, activeNetwork, user_configs[key].network);
         }
 
         return [
@@ -324,19 +343,6 @@ const loadUserConfigs = (
     });
 
     return keyboardButtons;
-
-    // // Conditionally add the active wallet address.
-    // if (activeWalletAddress !== null) {
-    //     return [
-    //         {
-    //             text: truncateAddress(activeWalletAddress),
-    //             callback_data: `set_active_account_${activeWalletAddress}`,
-    //         },
-    //         ...keyboardButtons,
-    //     ];
-    // } else {
-    //     return keyboardButtons;
-    // }
 };
 
 function readUserConfigs(filePath: string): any {

@@ -10,13 +10,15 @@ import {
 import {
     SupportedTrendingPeriods,
     supportedToTrendingPeriodNumber,
+    supportedToTrendingPeriodFactor,
 } from "../config/trending-config";
 import { truncateAddress } from "../utils/address-utils";
 import {
     CountableSaleWithToken,
     CountableSaleWithTokenAndVolume,
 } from "../config/types/sales-types";
-import { ZDK, SalesQueryArgs } from "@zoralabs/zdk";
+import { SalesQueryArgs } from "@zoralabs/zdk";
+import { getZdkInstance } from "../utils/zdk-utils";
 import {
     SaleSortKey,
     SalesQueryFilter,
@@ -76,16 +78,6 @@ const initTrendingProfile = (
         .catch((err) => console.log(err));
 };
 
-const getZdkInstance = (network: SupportedNetworks): ZDK => {
-    const args = {
-        endPoint: process.env.ZORA_API_URL,
-        networks: [supportedNetworkToZdkNetwork(network)!],
-    };
-    const zdk = new ZDK(args);
-
-    return zdk;
-};
-
 const collectNftSales = async (
     network: SupportedNetworks,
     selectedTrendingPeriod: SupportedTrendingPeriods
@@ -95,7 +87,14 @@ const collectNftSales = async (
 
     // Set filter to fetch sales from the past 24 hours.
     const now = new Date();
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const yesterday = new Date(
+        now.getTime() -
+            supportedToTrendingPeriodFactor(selectedTrendingPeriod)! *
+                24 *
+                60 *
+                60 *
+                1000
+    );
 
     const filter: SalesQueryFilter = {
         timeFilter: {
@@ -310,3 +309,4 @@ const renderTrendingNftCollectionsTable = (
 
     return table;
 };
+

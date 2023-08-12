@@ -130,6 +130,33 @@ export const networkUrl = (
     }
 };
 
+export const safeDelegatedProxyAddress = (
+    network: string | null
+): string | null | undefined => {
+    switch (network) {
+        case SupportedNetworks.ETHEREUM_MAINNET:
+            return process.env.ETHEREUM_MAINNET_SAFE_DEL_PROXY_ADDRESS;
+        case SupportedNetworks.ETHEREUM_SEPOLIA:
+            return process.env.ETHEREUM_SEPOLIA_SAFE_DEL_PROXY_ADDRESS;
+        case SupportedNetworks.ETHERUM_GOERLI:
+            return process.env.ETHEREUM_GOERLI_SAFE_DEL_PROXY_ADDRESS;
+        case SupportedNetworks.OPTIMISM_MAINNET:
+            return process.env.OPTIMISM_MAINNET_SAFE_DEL_PROXY_ADDRESS;
+        case SupportedNetworks.OPTIMISM_GOERLI:
+            return process.env.OPTIMISM_GOERLI_SAFE_DEL_PROXY_ADDRESS;
+        case SupportedNetworks.BASE_MAINNET:
+            return process.env.BASE_MAINNET_SAFE_DEL_PROXY_ADDRESS;
+        case SupportedNetworks.BASE_GOERLI:
+            return process.env.BASE_GOERLI_SAFE_DEL_PROXY_ADDRESS;
+        case SupportedNetworks.ZORA_MAINNET:
+            return process.env.ZORA_MAINNET_SAFE_DEL_PROXY_ADDRESS;
+        case SupportedNetworks.ZORA_GOERLI:
+            return process.env.ZORA_GOERLI_SAFE_DEL_PROXY_ADDRESS;
+        default:
+            return null;
+    }
+};
+
 export const addressExplorerUrl = (
     network: string | null,
     address: string,
@@ -262,5 +289,26 @@ export const chainIdToSupportedNetwork = (
             return SupportedNetworks.LOCALHOST;
         default:
             return SupportedNetworks.UNDEFINED;
+    }
+};
+
+export const supportedNetworkToOpenseaAssetLink = (
+    network: SupportedNetworks,
+    assetAddress: string,
+    assetId: String
+): string | null => {
+    switch (network) {
+        case SupportedNetworks.ETHEREUM_MAINNET:
+            return `<a href="https://opensea.io/assets/ethereum/${assetAddress}/${assetId}">View on OpenSea</a>`;
+        case SupportedNetworks.ETHERUM_GOERLI:
+            return `<a href="https://testnets.opensea.io/assets/goerli/${assetAddress}/${assetId}">View on OpenSea</a>`;
+        case SupportedNetworks.OPTIMISM_MAINNET:
+            return `<a href="https://opensea.io/assets/optimism/${assetAddress}/${assetId}">View on OpenSea</a>`;
+        case SupportedNetworks.BASE_MAINNET:
+            return `<a href="https://opensea.io/assets/base/${assetAddress}/${assetId}">View on OpenSea</a>`;
+        case SupportedNetworks.ZORA_MAINNET:
+            return `<a href="https://opensea.io/assets/zora/${assetAddress}/${assetId}">View on OpenSea</a>`;
+        default:
+            return null;
     }
 };

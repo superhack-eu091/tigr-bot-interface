@@ -18,16 +18,6 @@ export const getProvider = (
     return provider;
 };
 
-export const getNetwork = (
-    msg: Message,
-    activeNetwork: Record<number, string | undefined>
-): string | null => {
-    const chatId = msg.chat.id;
-    const network: string | undefined = activeNetwork[chatId];
-
-    return network !== undefined ? network : null;
-};
-
 export const setNetwork = (
     msg: Message,
     activeNetwork: Record<number, string | undefined>,
@@ -41,4 +31,14 @@ export const isSupportedNetwork = (network: string): boolean => {
     return Object.values(SupportedNetworks).includes(
         network as SupportedNetworks
     );
+};
+
+export const getNetwork = (
+    msg: Message,
+    activeNetwork: Record<number, string | undefined>
+): string | null => {
+    const chatId = msg.chat.id;
+    const network: string | undefined = activeNetwork[chatId];
+
+    return network !== undefined ? network : null;
 };

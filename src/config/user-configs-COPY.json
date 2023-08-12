@@ -28,5 +28,10 @@
         "eoaAddress": "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
         "network": "optimism_goerli",
         "walletAddress": "0x91D76E147F32A9cDAc858031B54dAaf3c451840a"
+    },
+    "0x976EA74026E726554dB657fA54763abd0C3a0aa9_optimism_goerli": {
+        "eoaAddress": "0x976EA74026E726554dB657fA54763abd0C3a0aa9",
+        "network": "optimism_goerli",
+        "walletAddress": "0x521bb64747D6ABD837ecFCE2761C859E236178B5"
     }
 }

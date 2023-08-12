@@ -1,22 +1,18 @@
 import { ethers } from "ethers";
 import { BigNumber } from "@ethersproject/bignumber";
+import { ContractReceipt } from "@ethersproject/contracts";
 import Safe, {
     EthersAdapter,
     SafeFactory,
     SafeAccountConfig,
-    EthersAdapterConfig,
 } from "@safe-global/protocol-kit";
 import {
     SafeTransaction,
     SafeTransactionDataPartial,
 } from "@safe-global/safe-core-sdk-types";
 import { Message } from "node-telegram-bot-api";
-import {
-    SupportedNetworks,
-    networkProvider,
-    networkUrl,
-} from "../config/network-config";
-import { setEthAddress, getEthAddress, getEthBalance } from "./account-utils";
+import { SupportedNetworks, networkProvider } from "../config/network-config";
+import { setEthAddress } from "./account-utils";
 import { SafeInfo } from "../config/types/safe-types";
 
 const initSigner = async (
@@ -57,7 +53,7 @@ export const deploySafe = async (
     selectedNetwork: Record<number, SupportedNetworks>
 ): Promise<SafeInfo> => {
     // Init Safe SDK
-    const demo__Network = SupportedNetworks.OPTIMISM_GOERLI;
+    const demo__Network = SupportedNetworks.ETHERUM_GOERLI;
     // initEthAdapter(selectedNetwork[msg.chat.id]);
     const ethAdapter = await initEthAdapter(demo__Network);
     console.log(ethAdapter);
@@ -110,4 +106,59 @@ export const getWalletAddress = async (safe: Safe): Promise<string> => {
 
 export const getWalletBalance = async (safe: Safe): Promise<BigNumber> => {
     return await safe.getBalance();
+};
+
+export const createSafePaymentTx = async (
+    safeAddress: string,
+    to: string,
+    amount: string
+): Promise<SafeTransaction> => {
+    return await createSafeTx(safeAddress, to, amount, "0x");
+};
+
+export const createSafeTx = async (
+    safeAddress: string,
+    to: string,
+    amount: string,
+    data: string
+): Promise<SafeTransaction> => {
+    // Init Safe SDK
+    const demo__Network = SupportedNetworks.ETHERUM_GOERLI;
+    // initEthAdapter(selectedNetwork[msg.chat.id]);
+    const ethAdapter = await initEthAdapter(demo__Network);
+
+    // Connect to Safe
+    const safe = await Safe.create({ ethAdapter, safeAddress });
+
+    // Create Transaction
+    const amountWei = ethers.utils.parseEther(amount).toString(); // Convert to wei
+    const safeTransactionData: SafeTransactionDataPartial = {
+        to: to,
+        value: amountWei,
+        data: data,
+    };
+
+    const safeTransaction: SafeTransaction = await safe.createTransaction({
+        safeTransactionData,
+    });
+
+    return safeTransaction;
+};
+
+export const signAndExecuteSafeTx = async (
+    safe: Safe,
+    safeTransaction: SafeTransaction
+): Promise<ContractReceipt | undefined> => {
+    // Sign Transaction
+    const txHash = await safe.getTransactionHash(safeTransaction);
+    const approveTxResponse = await safe.approveTransactionHash(txHash);
+    await approveTxResponse.transactionResponse?.wait();
+    console.log(`approvedTx: (${approveTxResponse})\n`);
+
+    // Execute Transaction
+    const executeTxResponse = await safe.executeTransaction(safeTransaction);
+    const txReceipt = await executeTxResponse.transactionResponse?.wait();
+    console.log(`executedTx: (${txReceipt?.transactionHash})\n`);
+
+    return txReceipt;
 };
