@@ -2,6 +2,7 @@ import { runOnboarding } from "./src/profiles/onboarding";
 import { runNFTs } from "./src/profiles/nfts";
 import { runTrending } from "./src/profiles/trending";
 import { runNftPurchase } from "./src/profiles/nft-purchase";
+import { runPeanut } from "./src/profiles/peanut-exchange";
 import { SupportedNetworks } from "./src/config/network-config";
 import { SupportedTrendingPeriods } from "./src/config/trending-config";
 
@@ -14,3 +15,4 @@ runOnboarding(userEthAddresses, activeNetwork);
 runNFTs(activeNetwork, selectedTrendingPeriod);
 runTrending(activeNetwork, selectedTrendingPeriod);
 runNftPurchase(userEthAddresses, activeNetwork).then(() => {});
+runPeanut(userEthAddresses, activeNetwork).then(() => {});

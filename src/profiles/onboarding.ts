@@ -174,6 +174,12 @@ const renderInlineKeyboard = (
         ? [
               ...loadUserConfigs(msg, userWalletAddress, activeNetwork),
               [{ text: "🔍  Explore NFTs  🔍", callback_data: "nft_profile" }],
+              [
+                  {
+                      text: "🥜  Peanut Exchange",
+                      callback_data: "peanut_exchange",
+                  },
+              ],
               [{ text: "🎫  Direct Buy", callback_data: "direct_nft_buy" }],
           ]
         : [
