@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import { ethers } from "ethers";
+import { ContractReceipt } from "@ethersproject/contracts";
 import { InlineKeyboardButton, Message } from "node-telegram-bot-api";
 import {
     telegram_bot as bot,
@@ -25,11 +26,16 @@ import {
     INVALID_TOKEN_ID,
 } from "../config/prompt-config";
 import { SAFE_DELEGATED_ERC721_PROXY_ABI } from "../utils/contract-utils";
-import { createSafeTx } from "../utils/safe-utils";
+import {
+    createSafeTx,
+    createTxHash,
+    approveTxHash,
+    signAndExecuteSafeTx,
+} from "../utils/safe-utils";
 import { encodeSetAllowanceCalldata } from "../utils/proxy-utils";
 import { OpenSeaSDK, Chain } from "opensea-js";
 import { OrderV2 } from "opensea-js/lib/orders/types";
-import { create } from "domain";
+import { SafeTransaction } from "@safe-global/safe-core-sdk-types";
 
 const userInputState: Record<number, string> = {};
 let messageId: number | undefined = undefined;
@@ -162,31 +168,72 @@ const approvePurchaseNft = async (
     tokenId: string,
     currentPrice: string
 ) => {
-    const network = activeNetwork[msg.chat.id];
     const walletAddress = userWalletAddress[msg.chat.id];
+    const network = activeNetwork[msg.chat.id];
+    const provider = networkProvider(network)!;
+    const wallet = new ethers.Wallet(
+        process.env.PRIVATE_KEY_ACCOUNT_BOT!,
+        provider
+    );
+    const openseaSDK = new OpenSeaSDK(
+        provider,
+        {
+            chain: Chain.Goerli,
+        },
+        undefined,
+        wallet
+    );
+
+    console.log(currentPrice);
+    await convertEthToWeth(msg, activeNetwork, currentPrice);
+    console.log(await wallet.getBalance());
 
     console.log(network);
     console.log(walletAddress);
     console.log(safeDelegatedProxyAddress(network));
     console.log(SAFE_DELEGATED_ERC721_PROXY_ABI);
+    console.log(currentPrice);
+    console.log(ethers.utils.formatEther(currentPrice));
 
-    const calldata = encodeSetAllowanceCalldata(
-        tokenAddress,
-        tokenId,
-        currentPrice,
-        walletAddress
-    );
+    const fulfillmentData = await openseaSDK.createBuyOrder({
+        asset: { tokenAddress: tokenAddress, tokenId: tokenId },
+        accountAddress: process.env.ADDRESS_ACCOUNT_BOT!,
+        startAmount: currentPrice,
+        /* paymentTokenAddress: Default is WETH Address */
+    });
 
-    console.log(calldata);
+    console.log(fulfillmentData);
 
-    const safeTx = await createSafeTx(
-        walletAddress,
-        safeDelegatedProxyAddress(network)!,
-        "0",
-        calldata
-    );
+    // const calldata = encodeSetAllowanceCalldata(
+    //     tokenAddress,
+    //     tokenId,
+    //     currentPrice,
+    //     walletAddress
+    // );
 
-    console.log(safeTx);
+    // console.log(calldata);
+
+    // const safeTx: SafeTransaction = await createSafeTx(
+    //     walletAddress,
+    //     network,
+    //     safeDelegatedProxyAddress(network)!,
+    //     "0",
+    //     calldata
+    // );
+
+    // console.log(safeTx);
+
+    // let receipt: ContractReceipt | undefined = await approveTxHash(
+    //     walletAddress,
+    //     network,
+    //     safeTx
+    // );
+
+    // console.log(receipt);
+
+    // receipt = await signAndExecuteSafeTx(walletAddress, network, safeTx);
+
+    // console.log(receipt);
 
     // const provider = networkProvider(network)!;
     // const contract = new ethers.Contract(
@@ -321,3 +368,57 @@ const parseNftPurchaseInput = (
         isValidTokenId: Number.isInteger(Number(tokenId)),
     };
 };
+
+const convertEthToWeth = async (
+    msg: Message,
+    activeNetwork: Record<number, SupportedNetworks>,
+    amountInWei: string
+) => {
+    const network = activeNetwork[msg.chat.id];
+    const provider = networkProvider(network)!;
+    const wallet = new ethers.Wallet(
+        process.env.PRIVATE_KEY_ACCOUNT_BOT!,
+        provider
+    );
+    const WETH_CONTRACT_ADDRESS = "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6";
+    const weth = new ethers.Contract(
+        WETH_CONTRACT_ADDRESS,
+        WETH_ABI_WITHDRAW,
+        wallet
+    );
+
+    const tx = await weth.withdraw(amountInWei);
+    await tx.wait();
+
+    console.log(tx);
+    console.log("Withdrew", amountInWei, "ETH to WETH");
+};
+
+const WETH_ABI_DEPOSIT = [
+    // Only the deposit function is added for simplicity
+    {
+        constant: false,
+        inputs: [],
+        name: "deposit",
+        outputs: [],
+        stateMutability: "payable",
+        type: "function",
+    },
+];
+
+const WETH_ABI_WITHDRAW = [
+    // Only the deposit function is added for simplicity
+    {
+        inputs: [
+            {
+                internalType: "uint256",
+                name: "wad",
+                type: "uint256",
+            },
+        ],
+        name: "withdraw",
+        outputs: [],
+        stateMutability: "nonpayable",
+        type: "function",
+    },
+];

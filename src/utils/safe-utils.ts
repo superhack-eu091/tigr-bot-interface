@@ -22,6 +22,9 @@ const initSigner = async (
     const wallet = new ethers.Wallet(`${process.env.PRIVATE_KEY_ACCOUNT_BOT}`);
     const provider = networkProvider(selectedNetwork);
 
+    console.log("..........................................");
+    console.log("selectedNetwork: ", selectedNetwork);
+
     console.log(wallet);
     console.log(provider);
 
@@ -92,6 +95,19 @@ export const deploySafe = async (
     };
 };
 
+export const connectSafe = async (
+    safeAddress: string,
+    network: SupportedNetworks
+): Promise<Safe> => {
+    // Init Safe SDK
+    const ethAdapter = await initEthAdapter(network);
+
+    // Connect to Safe
+    const safe = await Safe.create({ ethAdapter, safeAddress });
+
+    return safe;
+};
+
 export const setWalletAddress = (
     msg: Message,
     addressesRecord: Record<number, string>,
@@ -110,25 +126,25 @@ export const getWalletBalance = async (safe: Safe): Promise<BigNumber> => {
 
 export const createSafePaymentTx = async (
     safeAddress: string,
+    network: SupportedNetworks,
     to: string,
     amount: string
 ): Promise<SafeTransaction> => {
-    return await createSafeTx(safeAddress, to, amount, "0x");
+    return await createSafeTx(safeAddress, network, to, amount, "0x");
 };
 
 export const createSafeTx = async (
     safeAddress: string,
+    network: SupportedNetworks,
     to: string,
     amount: string,
     data: string
 ): Promise<SafeTransaction> => {
-    // Init Safe SDK
-    const demo__Network = SupportedNetworks.ETHERUM_GOERLI;
-    // initEthAdapter(selectedNetwork[msg.chat.id]);
-    const ethAdapter = await initEthAdapter(demo__Network);
-
-    // Connect to Safe
-    const safe = await Safe.create({ ethAdapter, safeAddress });
+    // Init Safe SDK instance
+    const safe = await connectSafe(
+        safeAddress,
+        SupportedNetworks.ETHERUM_GOERLI
+    );
 
     // Create Transaction
     const amountWei = ethers.utils.parseEther(amount).toString(); // Convert to wei
@@ -145,15 +161,44 @@ export const createSafeTx = async (
     return safeTransaction;
 };
 
+export const createTxHash = async (
+    safeAddress: string,
+    network: SupportedNetworks,
+    transaction: SafeTransaction
+): Promise<string> => {
+    // Init Safe SDK instance
+    const safe = await connectSafe(safeAddress, network);
+
+    // Create Transaction Hash
+    const txHash: string = await safe.getTransactionHash(transaction);
+
+    return txHash;
+};
+
+export const approveTxHash = async (
+    safeAddress: string,
+    network: SupportedNetworks,
+    transaction: SafeTransaction
+): Promise<ContractReceipt | undefined> => {
+    // Init Safe SDK instance
+    const safe = await connectSafe(safeAddress, network);
+
+    // Approve Transaction
+    const txHash: string = await safe.getTransactionHash(transaction);
+    const approveTxResponse = await safe.approveTransactionHash(txHash);
+    const txReceipt = await approveTxResponse.transactionResponse?.wait();
+    console.log(`approvedTx: (${txReceipt})\n`);
+
+    return txReceipt;
+};
+
 export const signAndExecuteSafeTx = async (
-    safe: Safe,
+    safeAddress: string,
+    network: SupportedNetworks,
     safeTransaction: SafeTransaction
 ): Promise<ContractReceipt | undefined> => {
-    // Sign Transaction
-    const txHash = await safe.getTransactionHash(safeTransaction);
-    const approveTxResponse = await safe.approveTransactionHash(txHash);
-    await approveTxResponse.transactionResponse?.wait();
-    console.log(`approvedTx: (${approveTxResponse})\n`);
+    // Init Safe SDK instance
+    const safe = await connectSafe(safeAddress, network);
 
     // Execute Transaction
     const executeTxResponse = await safe.executeTransaction(safeTransaction);

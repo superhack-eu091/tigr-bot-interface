@@ -33,5 +33,10 @@
         "eoaAddress": "0x976EA74026E726554dB657fA54763abd0C3a0aa9",
         "network": "optimism_goerli",
         "walletAddress": "0x521bb64747D6ABD837ecFCE2761C859E236178B5"
+    },
+    "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266_ethereum_goerli": {
+        "eoaAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "network": "ethereum_goerli",
+        "walletAddress": "0xde80C1a5A01f9C8d81E13405d949eB165e1F4191"
     }
 }

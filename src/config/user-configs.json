@@ -1,7 +1,7 @@
 {
-    "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266_ethereum_goerli": {
-        "eoaAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "0x376186174FD33C7F3653d82954dAD07ef780C102_ethereum_goerli": {
+        "eoaAddress": "0x376186174FD33C7F3653d82954dAD07ef780C102",
         "network": "ethereum_goerli",
-        "walletAddress": "0xde80C1a5A01f9C8d81E13405d949eB165e1F4191"
+        "walletAddress": "0xbA58CbD79867A42EF34BEFF89818c0A96af8699A"
     }
 }
