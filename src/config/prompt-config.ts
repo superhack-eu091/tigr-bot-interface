@@ -14,7 +14,12 @@ Welcome to NFT Direct Purchases!
 
 This feature allows you to purchase NFTs directly from the contract address and token ID.
 
-Please enter the contract address and token ID of the NFT you would like to purchase.
+See below for the available NFTs! 👀
+`;
+
+export const NFT_PURCHASE_INSTRUCTIONS: string = `
+❗Please enter the contract address and token ID
+❗of the NFT you would like to purchase.
 `;
 
 export const NFT_PURCHASE_EXAMPLE: string = `

@@ -2,10 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {ISafeDelegatedERC721Proxy} from "./interfaces/ISafeDelegatedERC721Proxy.sol";
-
-interface IERC721 {
-    function transferFrom(address from, address to, uint256 tokenId) external;
-}
+import {IERC721} from "lib/openzeppelin-contracts/contracts/interfaces/IERC721.sol";
 
 interface IERC721Receiver {
     /**

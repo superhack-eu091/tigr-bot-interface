@@ -10,6 +10,7 @@ import {
 } from "../utils/telegram-bot";
 import {
     NFT_PURCHASE_GREETING,
+    NFT_PURCHASE_INSTRUCTIONS,
     NFT_PURCHASE_EXAMPLE,
     QUERY_FAILED,
 } from "../config/prompt-config";
@@ -25,7 +26,10 @@ import {
     INVALID_TOKEN_ADDRESS,
     INVALID_TOKEN_ID,
 } from "../config/prompt-config";
-import { SAFE_DELEGATED_ERC721_PROXY_ABI } from "../utils/contract-utils";
+import {
+    SAFE_DELEGATED_ERC721_PROXY_ABI,
+    ERC721_ABI,
+} from "../utils/contract-utils";
 import {
     createSafeTx,
     createTxHash,
@@ -39,6 +43,25 @@ import { SafeTransaction } from "@safe-global/safe-core-sdk-types";
 
 const userInputState: Record<number, string> = {};
 let messageId: number | undefined = undefined;
+const MOCK_NFT_ADDRESSES = [
+    {
+        tokenAddress: "0xc06Ce325fcCceAAeb809F00D1A9F7e844Bd8Ff09",
+        tokenIds: ["648", "649"],
+    },
+    {
+        tokenAddress: "0x38C7BC76019f3CAAD2c4139e28c0156DF48B1294",
+        tokenIds: ["835", "836"],
+    },
+    {
+        tokenAddress: "0xA12322ADDe12565FD25f23aB42140790d19d64bF",
+        tokenIds: ["44", "45", "46", "47", "48", "49", "50", "51", "52", "53"],
+    },
+    {
+        tokenAddress: "0x25c0b0dcc3dcaa32a203a02ae27735b5f8baf80b",
+        tokenIds: ["53", "54", "55", "56", "57"],
+    },
+];
+const CURRENT_PRICE_WEI = ethers.utils.parseEther("0.12345");
 
 export const runNftPurchase = async (
     userWalletAddress: Record<number, string>,
@@ -52,6 +75,8 @@ export const runNftPurchase = async (
 
         const chatId = query.message.chat.id;
 
+        console.log("query.data: ", query.data);
+
         if (query.data === "direct_nft_buy") {
             await initNftPurchase(
                 query.message,
@@ -60,6 +85,30 @@ export const runNftPurchase = async (
             );
             userInputState[chatId] = "awaiting_token_serial_number";
         }
+    });
+
+    bot.on("message", async (msg: Message) => {
+        const chatId = msg.chat.id;
+
+        if (userInputState[chatId] === "awaiting_token_serial_number") {
+            const { tokenAddress, tokenId } = await confirmPurchaseNft(
+                msg,
+                userWalletAddress,
+                activeNetwork
+            );
+
+            await approvePurchaseNft(
+                msg,
+                userWalletAddress,
+                activeNetwork,
+                tokenAddress,
+                tokenId,
+                CURRENT_PRICE_WEI
+            );
+        }
+
+        // Reset state
+        userInputState[chatId] = "";
     });
 };
 
@@ -70,94 +119,53 @@ const initNftPurchase = async (
 ) => {
     await bot.sendMessage(msg.chat.id, NFT_PURCHASE_GREETING, {});
 
+    await displayAvailableNfts(msg, userWalletAddress, activeNetwork);
+
+    await bot.sendMessage(msg.chat.id, NFT_PURCHASE_INSTRUCTIONS, {});
+
     await bot.sendMessage(msg.chat.id, NFT_PURCHASE_EXAMPLE, {
         parse_mode: "HTML",
     });
-
-    bot.on("callback_query", async (query) => {
-        if (!query.message) {
-            console.log(QUERY_FAILED);
-            return;
-        }
-
-        if (query.data!.startsWith("purchase_nft_")) {
-            const [, , tokenAddress, tokenId] = query.data!.split("_");
-
-            await approvePurchaseNft(
-                query.message,
-                userWalletAddress,
-                activeNetwork,
-                tokenAddress,
-                tokenId,
-                "1000000000000"
-            );
-        }
-    });
-
-    bot.on("message", async (msg: Message) => {
-        const chatId = msg.chat.id;
-
-        if (userInputState[chatId] === "awaiting_token_serial_number") {
-            const { tokenAddress, tokenId, isValidAddress, isValidTokenId } =
-                parseNftPurchaseInput(msg.text!);
-
-            if (!isValidAddress)
-                sendTelegramMessage(msg, INVALID_TOKEN_ADDRESS);
-            if (!isValidTokenId) sendTelegramMessage(msg, INVALID_TOKEN_ID);
-
-            await confirmPurchaseNft(
-                msg,
-                userWalletAddress,
-                activeNetwork,
-                tokenAddress,
-                tokenId
-            );
-        }
-
-        // Reset state
-        userInputState[chatId] = "";
-    });
 };
 
-const confirmPurchaseNft = async (
+const displayAvailableNfts = async (
     msg: Message,
     userWalletAddress: Record<number, string>,
-    activeNetwork: Record<number, SupportedNetworks>,
-    tokenAddress: string,
-    tokenId: string
+    activeNetwork: Record<number, SupportedNetworks>
 ) => {
-    const nftListing: OrderV2 = await getNftListing(
-        msg,
-        activeNetwork,
-        tokenAddress,
-        tokenId
-    );
-
     const table: string = await renderNftListing(
         msg,
-        activeNetwork,
-        tokenAddress,
-        tokenId,
-        nftListing
+        userWalletAddress,
+        activeNetwork
     );
 
     await bot.sendMessage(msg.chat.id, table, {
         parse_mode: "HTML",
         disable_web_page_preview: true,
     });
+};
+
+const confirmPurchaseNft = async (
+    msg: Message,
+    userWalletAddress: Record<number, string>,
+    activeNetwork: Record<number, SupportedNetworks>
+): Promise<{ tokenAddress: string; tokenId: string }> => {
+    const { tokenAddress, tokenId, isValidAddress, isValidTokenId } =
+        parseNftPurchaseInput(msg.text!);
+
+    if (!isValidAddress) sendTelegramMessage(msg, INVALID_TOKEN_ADDRESS);
+    if (!isValidTokenId) sendTelegramMessage(msg, INVALID_TOKEN_ID);
 
     const nftPurchaseInputs: InlineKeyboardButton[][] =
-        renderNftPurchaseOptions(
-            tokenAddress,
-            tokenId,
-            nftListing.currentPrice.toString()
-        );
+        renderNftPurchaseOptions(tokenAddress, tokenId, CURRENT_PRICE_WEI);
 
     await bot.sendMessage(msg.chat.id, "Proceed with purchase?", {
         reply_markup: {
             inline_keyboard: nftPurchaseInputs,
         },
     });
+
+    return { tokenAddress, tokenId };
 };
 
 const approvePurchaseNft = async (
@@ -166,7 +174,7 @@ const approvePurchaseNft = async (
     activeNetwork: Record<number, SupportedNetworks>,
     tokenAddress: string,
     tokenId: string,
-    currentPrice: string
+    currentPrice: ethers.BigNumber
 ) => {
     const walletAddress = userWalletAddress[msg.chat.id];
     const network = activeNetwork[msg.chat.id];
@@ -175,34 +183,6 @@ const approvePurchaseNft = async (
         process.env.PRIVATE_KEY_ACCOUNT_BOT!,
         provider
     );
-    const openseaSDK = new OpenSeaSDK(
-        provider,
-        {
-            chain: Chain.Goerli,
-        },
-        undefined,
-        wallet
-    );
-
-    console.log(currentPrice);
-    await convertEthToWeth(msg, activeNetwork, currentPrice);
-    console.log(await wallet.getBalance());
-
-    console.log(network);
-    console.log(walletAddress);
-    console.log(safeDelegatedProxyAddress(network));
-    console.log(SAFE_DELEGATED_ERC721_PROXY_ABI);
-    console.log(currentPrice);
-    console.log(ethers.utils.formatEther(currentPrice));
-
-    const fulfillmentData = await openseaSDK.createBuyOrder({
-        asset: { tokenAddress: tokenAddress, tokenId: tokenId },
-        accountAddress: process.env.ADDRESS_ACCOUNT_BOT!,
-        startAmount: currentPrice,
-        /* paymentTokenAddress: Default is WETH Address */
-    });
-
-    console.log(fulfillmentData);
 
     // const calldata = encodeSetAllowanceCalldata(
     //     tokenAddress,
@@ -251,37 +231,14 @@ const approvePurchaseNft = async (
     // console.log("allowanceKey: ", allowanceKey);
 };
 
-const getNftListing = async (
-    msg: Message,
-    activeNetwork: Record<number, SupportedNetworks>,
-    tokenAddress: string,
-    tokenId: string
-): Promise<OrderV2> => {
-    const network = activeNetwork[msg.chat.id];
-    const provider = networkProvider(network)!;
-    const openseaSDK = new OpenSeaSDK(provider, {
-        chain: Chain.Goerli,
-    });
-
-    // Get sell orders for a specific NFT
-    const { orders } = await openseaSDK.api.getOrders({
-        assetContractAddress: tokenAddress,
-        tokenId,
-        side: "ask",
-    });
-
-    console.log("orders", orders);
-
-    return orders[0];
-};
-
 const renderNftListing = async (
     msg: Message,
-    activeNetwork: Record<number, SupportedNetworks>,
-    tokenAddress: string,
-    tokenId: string,
-    nftListing: OrderV2
+    userWalletAddress: Record<number, string>,
+    activeNetwork: Record<number, SupportedNetworks>
 ): Promise<string> => {
+    const walletAddress = userWalletAddress[msg.chat.id];
+    const network = activeNetwork[msg.chat.id];
+
     const headers = [
         "Contract Address",
         " Token ID  ",
@@ -292,41 +249,78 @@ const renderNftListing = async (
     ];
 
     const div =
-        "|------------------+-------------+---------------+-------------+-----------------+--------------";
+        "|------------------+-------------+--------------+--------------+-----------------+--------------";
 
-    const currentPrice = ethers.utils.formatEther(nftListing.currentPrice!);
+    const currentPrice = ethers.utils.formatEther(CURRENT_PRICE_WEI);
 
     const options: Intl.DateTimeFormatOptions = {
         day: "2-digit",
         month: "short",
         year: "numeric",
     };
-    const expirationTime = new Date(nftListing.closingDate!).toLocaleDateString(
+    const expirationTime = new Date("31-Dec-2023").toLocaleDateString(
         "en-US",
         options
     );
-    const createdTime = new Date(nftListing.createdDate!).toLocaleDateString(
+    const createdTime = new Date("10-Aug-2023").toLocaleDateString(
         "en-US",
         options
     );
 
-    const row =
-        `| ${truncateAddress(tokenAddress)}     ` +
-        `| ${tokenId.padEnd(12, " ")}` +
-        `| ${truncateAddress(nftListing.maker.address)} ` +
-        `| ${currentPrice.padEnd(12, "0")} ` +
-        `| ${expirationTime}    ` +
-        `| ${createdTime}`;
+    const provider = networkProvider(network)!;
 
-    const link = supportedNetworkToOpenseaAssetLink(
-        activeNetwork[msg.chat.id],
-        tokenAddress,
-        tokenId
+    let row: string = "";
+    let link: string = "";
+    const linsRecord: Record<string, string> = {};
+
+    await Promise.all(
+        MOCK_NFT_ADDRESSES.map(async ({ tokenAddress, tokenIds }) => {
+            await Promise.all(
+                tokenIds.map(async (tokenId) => {
+                    const contract = new ethers.Contract(
+                        tokenAddress,
+                        ERC721_ABI,
+                        provider
+                    );
+
+                    const tokenOwner = await contract.ownerOf(tokenId);
+
+                    if (
+                        ethers.utils.getAddress(tokenOwner) ==
+                        ethers.utils.getAddress(walletAddress)
+                    ) {
+                        row +=
+                            `| ${truncateAddress(tokenAddress)
+                                .padStart(14, " ")
+                                .padEnd(17, " ")}` +
+                            `| ${tokenId.padEnd(12, " ")}` +
+                            `| ${truncateAddress(walletAddress)} ` +
+                            `| ${currentPrice.padEnd(12, "0")} ` +
+                            `| ${expirationTime
+                                .padStart(13, " ")
+                                .padEnd(16, " ")}` +
+                            `| ${createdTime} |\n`;
+
+                        linsRecord[
+                            tokenAddress
+                        ] = `\n ${supportedNetworkToOpenseaAssetLink(
+                            network,
+                            tokenAddress,
+                            tokenId
+                        )}`;
+                    }
+                })
+            );
+        })
     );
 
-    const table =
-        `<pre>| ${headers.join(" | ")} |\n${div}|\n${row} |</pre>\n\n` +
-        `🔗 ${link}`;
+    for (const tokenAddress in linsRecord) {
+        link += linsRecord[tokenAddress];
+    }
+
+    const table = `<pre>| ${headers.join(
+        " | "
+    )} |\n${div}|\n${row}</pre>\n${link}`;
 
     console.log(table);
 
@@ -336,9 +330,9 @@ const renderNftListing = async (
 const renderNftPurchaseOptions = (
     tokenAddress: string,
     tokenId: string,
-    currentPrice: string
+    currentPrice: ethers.BigNumber
 ): InlineKeyboardButton[][] => {
-    console.log(currentPrice);
+    console.log(ethers.utils.formatEther(currentPrice));
 
     return [
         [
@@ -368,57 +362,3 @@ const parseNftPurchaseInput = (
         isValidTokenId: Number.isInteger(Number(tokenId)),
     };
 };
-
-const convertEthToWeth = async (
-    msg: Message,
-    activeNetwork: Record<number, SupportedNetworks>,
-    amountInWei: string
-) => {
-    const network = activeNetwork[msg.chat.id];
-    const provider = networkProvider(network)!;
-    const wallet = new ethers.Wallet(
-        process.env.PRIVATE_KEY_ACCOUNT_BOT!,
-        provider
-    );
-    const WETH_CONTRACT_ADDRESS = "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6";
-    const weth = new ethers.Contract(
-        WETH_CONTRACT_ADDRESS,
-        WETH_ABI_WITHDRAW,
-        wallet
-    );
-
-    const tx = await weth.withdraw(amountInWei);
-    await tx.wait();
-
-    console.log(tx);
-    console.log("Withdrew", amountInWei, "ETH to WETH");
-};
-
-const WETH_ABI_DEPOSIT = [
-    // Only the deposit function is added for simplicity
-    {
-        constant: false,
-        inputs: [],
-        name: "deposit",
-        outputs: [],
-        stateMutability: "payable",
-        type: "function",
-    },
-];
-
-const WETH_ABI_WITHDRAW = [
-    // Only the deposit function is added for simplicity
-    {
-        inputs: [
-            {
-                internalType: "uint256",
-                name: "wad",
-                type: "uint256",
-            },
-        ],
-        name: "withdraw",
-        outputs: [],
-        stateMutability: "nonpayable",
-        type: "function",
-    },
-];

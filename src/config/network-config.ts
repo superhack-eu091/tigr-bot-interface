@@ -299,15 +299,15 @@ export const supportedNetworkToOpenseaAssetLink = (
 ): string | null => {
     switch (network) {
         case SupportedNetworks.ETHEREUM_MAINNET:
-            return `<a href="https://opensea.io/assets/ethereum/${assetAddress}/${assetId}">View on OpenSea</a>`;
+            return `<a href="https://opensea.io/assets/ethereum/${assetAddress}/${assetId}">🔗 </a>${assetAddress}`;
         case SupportedNetworks.ETHERUM_GOERLI:
-            return `<a href="https://testnets.opensea.io/assets/goerli/${assetAddress}/${assetId}">View on OpenSea</a>`;
+            return `<a href="https://testnets.opensea.io/assets/goerli/${assetAddress}/${assetId}">🔗 </a>${assetAddress}`;
         case SupportedNetworks.OPTIMISM_MAINNET:
-            return `<a href="https://opensea.io/assets/optimism/${assetAddress}/${assetId}">View on OpenSea</a>`;
+            return `<a href="https://opensea.io/assets/optimism/${assetAddress}/${assetId}">🔗 </a>${assetAddress}`;
         case SupportedNetworks.BASE_MAINNET:
-            return `<a href="https://opensea.io/assets/base/${assetAddress}/${assetId}">View on OpenSea</a>`;
+            return `<a href="https://opensea.io/assets/base/${assetAddress}/${assetId}">🔗 </a>${assetAddress}`;
         case SupportedNetworks.ZORA_MAINNET:
-            return `<a href="https://opensea.io/assets/zora/${assetAddress}/${assetId}">View on OpenSea</a>`;
+            return `<a href="https://opensea.io/assets/zora/${assetAddress}/${assetId}">🔗 </a>${assetAddress}`;
         default:
             return null;
     }
