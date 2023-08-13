@@ -31,6 +31,7 @@ import {
     ERC721_ABI,
 } from "../utils/contract-utils";
 import {
+    getWalletOwners,
     createSafeTx,
     createTxHash,
     approveTxHash,
@@ -43,22 +44,28 @@ import { SafeTransaction } from "@safe-global/safe-core-sdk-types";
 
 const userInputState: Record<number, string> = {};
 let messageId: number | undefined = undefined;
+const MOCK_MARKET_ADDRESS = process.env.ADDRESS_MOCK_MARKET;
 const MOCK_NFT_ADDRESSES = [
+    // {
+    //     tokenAddress: "0xc06Ce325fcCceAAeb809F00D1A9F7e844Bd8Ff09",
+    //     tokenIds: ["648", "649"],
+    // },
+    // {
+    //     tokenAddress: "0x38C7BC76019f3CAAD2c4139e28c0156DF48B1294",
+    //     tokenIds: ["835", "836"],
+    // },
+    // {
+    //     tokenAddress: "0xA12322ADDe12565FD25f23aB42140790d19d64bF",
+    //     tokenIds: ["44", "45", "46", "47", "48", "49", "50", "51", "52", "53"],
+    // },
+    // {
+    //     tokenAddress: "0x25c0b0dcc3dcaa32a203a02ae27735b5f8baf80b",
+    //     tokenIds: ["53", "54", "55", "56", "57"],
+    // },
     {
-        tokenAddress: "0xc06Ce325fcCceAAeb809F00D1A9F7e844Bd8Ff09",
-        tokenIds: ["648", "649"],
-    },
-    {
-        tokenAddress: "0x38C7BC76019f3CAAD2c4139e28c0156DF48B1294",
-        tokenIds: ["835", "836"],
-    },
-    {
-        tokenAddress: "0xA12322ADDe12565FD25f23aB42140790d19d64bF",
-        tokenIds: ["44", "45", "46", "47", "48", "49", "50", "51", "52", "53"],
-    },
-    {
-        tokenAddress: "0x25c0b0dcc3dcaa32a203a02ae27735b5f8baf80b",
-        tokenIds: ["53", "54", "55", "56", "57"],
+        /* Actual NFTs in Marketplace */
+        tokenAddress: "0xd23A9aF27a59d71bDD89B612Ae62eb07DC99bB82",
+        tokenIds: ["0", "1"],
     },
 ];
 const CURRENT_PRICE_WEI = ethers.utils.parseEther("0.12345");
@@ -84,6 +91,17 @@ export const runNftPurchase = async (
                 activeNetwork
             );
             userInputState[chatId] = "awaiting_token_serial_number";
+        } else if (query.data!.startsWith("purchase_nft_")) {
+            const [, , tokenAddress, tokenId] = query.data!.split("_");
+
+            await executePurchaseNft(
+                query.message,
+                userWalletAddress,
+                activeNetwork,
+                tokenAddress,
+                tokenId,
+                CURRENT_PRICE_WEI
+            );
         }
     });
 
@@ -91,20 +109,14 @@ export const runNftPurchase = async (
         const chatId = msg.chat.id;
 
         if (userInputState[chatId] === "awaiting_token_serial_number") {
-            const { tokenAddress, tokenId } = await confirmPurchaseNft(
+            const confirmation = await confirmPurchaseNft(
                 msg,
                 userWalletAddress,
                 activeNetwork
             );
+            if (confirmation === null) return;
 
-            await approvePurchaseNft(
-                msg,
-                userWalletAddress,
-                activeNetwork,
-                tokenAddress,
-                tokenId,
-                CURRENT_PRICE_WEI
-            );
+            const { tokenAddress, tokenId } = confirmation;
         }
 
         // Reset state
@@ -149,15 +161,21 @@ const confirmPurchaseNft = async (
     msg: Message,
     userWalletAddress: Record<number, string>,
     activeNetwork: Record<number, SupportedNetworks>
-): Promise<{ tokenAddress: string; tokenId: string }> => {
+): Promise<{ tokenAddress: string; tokenId: string } | null> => {
     const { tokenAddress, tokenId, isValidAddress, isValidTokenId } =
         parseNftPurchaseInput(msg.text!);
 
-    if (!isValidAddress) sendTelegramMessage(msg, INVALID_TOKEN_ADDRESS);
-    if (!isValidTokenId) sendTelegramMessage(msg, INVALID_TOKEN_ID);
+    if (!isValidAddress) {
+        sendTelegramMessage(msg, INVALID_TOKEN_ADDRESS);
+        return null;
+    }
+    if (!isValidTokenId) {
+        sendTelegramMessage(msg, INVALID_TOKEN_ID);
+        return null;
+    }
 
     const nftPurchaseInputs: InlineKeyboardButton[][] =
-        renderNftPurchaseOptions(tokenAddress, tokenId, CURRENT_PRICE_WEI);
+        renderNftPurchaseOptions(tokenAddress, tokenId);
 
     await bot.sendMessage(msg.chat.id, "Proceed with purchase?", {
         reply_markup: {
@@ -168,7 +186,7 @@ const confirmPurchaseNft = async (
     return { tokenAddress, tokenId };
 };
 
-const approvePurchaseNft = async (
+const executePurchaseNft = async (
     msg: Message,
     userWalletAddress: Record<number, string>,
     activeNetwork: Record<number, SupportedNetworks>,
@@ -231,6 +249,30 @@ const approvePurchaseNft = async (
     // console.log("allowanceKey: ", allowanceKey);
 };
 
+const getNftPayoff = async (
+    network: SupportedNetworks,
+    walletAddress: string,
+    tokenAddress: string,
+    tokenId: string
+): Promise<ethers.BigNumber> => {
+    const provider = networkProvider(network)!;
+
+    const contract = new ethers.Contract(
+        safeDelegatedProxyAddress(network)!,
+        SAFE_DELEGATED_ERC721_PROXY_ABI,
+        provider
+    );
+
+    const payoff: ethers.BigNumber =
+        await contract.functions.getMaxAmountToPayForNFT(
+            walletAddress,
+            tokenAddress,
+            tokenId
+        );
+
+    return payoff;
+};
+
 const renderNftListing = async (
     msg: Message,
     userWalletAddress: Record<number, string>,
@@ -284,11 +326,23 @@ const renderNftListing = async (
                     );
 
                     const tokenOwner = await contract.ownerOf(tokenId);
+                    console.log(tokenOwner);
 
                     if (
                         ethers.utils.getAddress(tokenOwner) ==
-                        ethers.utils.getAddress(walletAddress)
+                        ethers.utils.getAddress(MOCK_MARKET_ADDRESS!)
                     ) {
+                        console.log(tokenOwner);
+
+                        console.log(
+                            await getNftPayoff(
+                                network,
+                                walletAddress,
+                                tokenAddress,
+                                tokenId
+                            )
+                        );
+
                         row +=
                             `| ${truncateAddress(tokenAddress)
                                 .padStart(14, " ")
@@ -329,11 +383,8 @@ const renderNftListing = async (
 
 const renderNftPurchaseOptions = (
     tokenAddress: string,
-    tokenId: string,
-    currentPrice: ethers.BigNumber
+    tokenId: string
 ): InlineKeyboardButton[][] => {
-    console.log(ethers.utils.formatEther(currentPrice));
-
     return [
         [
             {
@@ -362,3 +413,12 @@ const parseNftPurchaseInput = (
         isValidTokenId: Number.isInteger(Number(tokenId)),
     };
 };
+
+const envChecks = (): boolean => {
+    return !!MOCK_MARKET_ADDRESS;
+};
+
+if (!envChecks()) {
+    console.error("Environment variables not set properly");
+    process.exit(1);
+}

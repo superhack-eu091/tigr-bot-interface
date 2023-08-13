@@ -16,11 +16,17 @@ import { setEthAddress } from "./account-utils";
 import { SafeInfo } from "../config/types/safe-types";
 
 const initSigner = async (
-    selectedNetwork: SupportedNetworks
-): Promise<ethers.Wallet> => {
+    selectedNetwork: SupportedNetworks,
+    withSigner?: boolean // default true
+): Promise<ethers.Wallet | ethers.providers.JsonRpcProvider | null> => {
+    console.log(withSigner);
+    if (withSigner === undefined) withSigner = true;
+
     // WALLET CONNECTOR WITH PROVIDER
-    const wallet = new ethers.Wallet(`${process.env.PRIVATE_KEY_ACCOUNT_BOT}`);
     const provider = networkProvider(selectedNetwork);
+    if (!withSigner) return provider;
+
+    const wallet = new ethers.Wallet(`${process.env.PRIVATE_KEY_ACCOUNT_BOT}`);
 
     console.log("..........................................");
     console.log("selectedNetwork: ", selectedNetwork);
@@ -32,14 +38,15 @@ const initSigner = async (
 };
 
 const initEthAdapter = async (
-    selectedNetwork: SupportedNetworks
+    selectedNetwork: SupportedNetworks,
+    withSigner?: boolean // default true
 ): Promise<EthersAdapter> => {
     // BUILD EthAdapter
     // by using ethers and initSigner function
-    const botSigner = await initSigner(selectedNetwork);
-
-    const accounts = await botSigner.getAddress();
-    console.log("accounts: ", accounts);
+    const botSigner = (await initSigner(
+        selectedNetwork,
+        withSigner
+    ))! as ethers.Wallet;
 
     const ethAdapter = new EthersAdapter({
         ethers,
@@ -97,10 +104,11 @@ export const deploySafe = async (
 
 export const connectSafe = async (
     safeAddress: string,
-    network: SupportedNetworks
+    network: SupportedNetworks,
+    withSigner?: boolean // default true
 ): Promise<Safe> => {
     // Init Safe SDK
-    const ethAdapter = await initEthAdapter(network);
+    const ethAdapter = await initEthAdapter(network, withSigner);
 
     // Connect to Safe
     const safe = await Safe.create({ ethAdapter, safeAddress });
@@ -122,6 +130,19 @@ export const getWalletAddress = async (safe: Safe): Promise<string> => {
 
 export const getWalletBalance = async (safe: Safe): Promise<BigNumber> => {
     return await safe.getBalance();
+};
+
+export const getWalletOwners = async (
+    safeAddress: string,
+    network: SupportedNetworks
+): Promise<string[]> => {
+    // Init Safe SDK instance
+    const safe = await connectSafe(safeAddress, network, false);
+
+    // Get Safe Owners
+    const safeOwners = await safe.getOwners();
+
+    return safeOwners;
 };
 
 export const createSafePaymentTx = async (

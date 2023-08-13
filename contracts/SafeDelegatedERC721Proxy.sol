@@ -1,19 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {ISafeDelegatedERC721Proxy} from "./interfaces/ISafeDelegatedERC721Proxy.sol";
 import {IERC721} from "lib/openzeppelin-contracts/contracts/interfaces/IERC721.sol";
 
 interface IERC721Receiver {
-    /**
-     * @dev Whenever an {IERC721} `tokenId` token is transferred to this contract via {IERC721-safeTransferFrom}
-     * by `operator` from `from`, this function is called.
-     *
-     * It must return its Solidity selector to confirm the token transfer.
-     * If any other value is returned or the interface is not implemented by the recipient, the transfer will be reverted.
-     *
-     * The selector can be obtained in Solidity with `IERC721Receiver.onERC721Received.selector`.
-     */
     function onERC721Received(
         address operator,
         address from,
@@ -22,13 +12,137 @@ interface IERC721Receiver {
     ) external returns (bytes4);
 }
 
-contract SafeDelegatedERC721Proxy is
-    ISafeDelegatedERC721Proxy,
-    IERC721Receiver
-{
-    mapping(bytes32 => AllowanceInfo) public allowances;
+// From code sample found
+contract Enum {
+    enum Operation {
+        Call,
+        DelegateCall
+    }
+}
 
-    function generateAllowanceKey(
+interface Executor {
+    /// @dev Allows a Module to execute a transaction.
+    /// @param to Destination address of module transaction.
+    /// @param value Ether value of module transaction.
+    /// @param data Data payload of module transaction.
+    /// @param operation Operation type of module transaction.
+    function execTransactionFromModule(
+        address to,
+        uint256 value,
+        bytes calldata data,
+        Enum.Operation operation
+    ) external returns (bool success);
+}
+
+contract SafeDelegatedERC721Proxy {
+    //
+    // Buying logic
+    //
+
+    struct PurchaseInfo {
+        bool initiated;
+        uint256 maxPrice;
+        Executor gnosisSafeInstance;
+    }
+
+    // For a given nft and index, specify the maximum amount that will be paid
+    mapping(bytes32 => PurchaseInfo) public allowances;
+
+    function generateBuyAllowanceKey(
+        address owner,
+        address nft,
+        uint256 tokenId
+    ) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(owner, nft, tokenId));
+    }
+
+    function getMaxAmountToPayForNFT(
+        address owner,
+        address nft,
+        uint256 tokenId
+    ) public view returns (uint256) {
+        bytes32 key = generateBuyAllowanceKey(owner, nft, tokenId);
+        return allowances[key].maxPrice;
+    }
+
+    function setMaxAmountToPayForNFT(
+        address owner,
+        address nft,
+        uint256 tokenId,
+        uint256 amount,
+        address spender
+    ) public {
+        //require(msg.sender == owner, "Only owner can set allowance");
+        bytes32 key = generateBuyAllowanceKey(owner, nft, tokenId);
+        allowances[key] = PurchaseInfo({
+            initiated: false,
+            maxPrice: amount,
+            gnosisSafeInstance: Executor(spender)
+        });
+    }
+
+    function buyNFT(
+        address owner,
+        address nft,
+        uint256 tokenId,
+        uint256 amount,
+        address payable seller
+    ) public {
+        bytes32 key = generateBuyAllowanceKey(owner, nft, tokenId);
+        //require(amount <= allowances[key].maxPrice, "Price less than expected");
+        // Protect against re-entrancy
+        //require(!allowances[key].initiated, "Already in progress");
+
+        //allowances[key].initiated = true;
+
+        // It's expected the receiver of the funds sends the NFT in the same transaction
+        transferEtherFromGnosisSafe(
+            Executor(owner), // Safe SCW funds will be taken from
+            nft, // NFT being bought
+            tokenId, // ID of NFT being bought
+            seller, // Market destination where NFT will be sent from
+            amount
+        ); // Cost of NFT
+
+        // Resulting in the NFT now belonging to the user
+        //require(IERC721(nft).ownerOf(tokenId) == address(this), "NFT not transferred");
+
+        //delete allowances[key];
+
+        // Now this contract owns the NFT, forward it to the real owner
+        //IERC721(nft).transferFrom(address(this), owner, tokenId);
+    }
+
+    function transferEtherFromGnosisSafe(
+        Executor payer,
+        address nft,
+        uint256 tokenId,
+        address payable _to,
+        uint256 _amount
+    ) public {
+        //bytes memory data;// = abi.encodePacked(address(this), nft, tokenId);
+
+        bytes memory data;
+
+        Enum.Operation op = Enum.Operation.Call;
+        bool success = payer.execTransactionFromModule(_to, _amount, data, op);
+
+        require(success, "Transfer from Gnosis Safe failed");
+    }
+
+    //
+    // Selling logic
+    //
+
+    struct SellAllowanceInfo {
+        bool canBeTransferred;
+        bool canBeSold;
+        uint256 minPrice;
+    }
+
+    mapping(bytes32 => SellAllowanceInfo) public sellingAllowances;
+
+    function generateSellAllowanceKey(
         address owner,
         address nft,
         uint256 tokenId,
@@ -42,9 +156,12 @@ contract SafeDelegatedERC721Proxy is
         address nft,
         uint256 tokenId,
         address spender
-    ) external view override returns (bool, uint256) {
-        bytes32 key = generateAllowanceKey(owner, nft, tokenId, spender);
-        return (allowances[key].canBeSold, allowances[key].minPrice);
+    ) external view returns (bool, uint256) {
+        bytes32 key = generateSellAllowanceKey(owner, nft, tokenId, spender);
+        return (
+            sellingAllowances[key].canBeSold,
+            sellingAllowances[key].minPrice
+        );
     }
 
     function canTransferNFT(
@@ -52,9 +169,9 @@ contract SafeDelegatedERC721Proxy is
         address nft,
         uint256 tokenId,
         address spender
-    ) external view override returns (bool) {
-        bytes32 key = generateAllowanceKey(owner, nft, tokenId, spender);
-        return allowances[key].canBeTransferred;
+    ) external view returns (bool) {
+        bytes32 key = generateSellAllowanceKey(owner, nft, tokenId, spender);
+        return sellingAllowances[key].canBeTransferred;
     }
 
     function sellNFT(
@@ -62,19 +179,27 @@ contract SafeDelegatedERC721Proxy is
         address nft,
         uint256 tokenId,
         address destination
-    ) external payable override {
-        bytes32 key = generateAllowanceKey(owner, nft, tokenId, destination);
+    ) external payable {
+        bytes32 key = generateSellAllowanceKey(
+            owner,
+            nft,
+            tokenId,
+            destination
+        );
 
-        require(allowances[key].canBeSold, "Not sellable");
-        require(msg.value >= allowances[key].minPrice, "Insufficient payment");
+        require(sellingAllowances[key].canBeSold, "Not sellable");
+        require(
+            msg.value >= sellingAllowances[key].minPrice,
+            "Insufficient payment"
+        );
         // Implicitly the caller is allowed to spend
 
-        payable(owner).transfer(allowances[key].minPrice);
+        payable(owner).transfer(sellingAllowances[key].minPrice);
 
         IERC721 nftContract = IERC721(nft);
         nftContract.transferFrom(owner, destination, tokenId);
 
-        delete allowances[key];
+        delete sellingAllowances[key];
     }
 
     function transferNFT(
@@ -82,45 +207,46 @@ contract SafeDelegatedERC721Proxy is
         address nft,
         uint256 tokenId,
         address destination
-    ) external override {
-        bytes32 key = generateAllowanceKey(owner, nft, tokenId, destination);
+    ) external {
+        bytes32 key = generateSellAllowanceKey(
+            owner,
+            nft,
+            tokenId,
+            destination
+        );
 
-        require(allowances[key].canBeTransferred, "Not transferrable");
+        require(sellingAllowances[key].canBeTransferred, "Not transferrable");
         // Implicitly the caller is allowed to send
         IERC721 nftContract = IERC721(nft);
         nftContract.transferFrom(owner, destination, tokenId);
 
-        delete allowances[key];
+        delete sellingAllowances[key];
     }
 
-    function setAllowance(
+    function setSellAllowance(
         address nft,
         uint256 tokenId,
+        bool canBeSold,
         uint256 minPrice,
         address destination,
         bool canBeTransferred
     ) external {
-        address owner = msg.sender;
-        bytes32 key = generateAllowanceKey(owner, nft, tokenId, destination);
+        if (minPrice > 0) {
+            require(canBeSold, "Price requires selling permission");
+        }
 
-        allowances[key] = AllowanceInfo({
-            canBeSold: minPrice > 0,
+        address owner = msg.sender;
+        bytes32 key = generateSellAllowanceKey(
+            owner,
+            nft,
+            tokenId,
+            destination
+        );
+
+        sellingAllowances[key] = SellAllowanceInfo({
+            canBeSold: canBeSold,
             minPrice: minPrice,
             canBeTransferred: canBeTransferred
         });
-    }
-
-    /**
-     * @dev See {IERC721Receiver-onERC721Received}.
-     *
-     * Always returns `IERC721Receiver.onERC721Received.selector`.
-     */
-    function onERC721Received(
-        address,
-        address,
-        uint256,
-        bytes memory
-    ) public virtual override returns (bytes4) {
-        return this.onERC721Received.selector;
     }
 }
