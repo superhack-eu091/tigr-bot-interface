@@ -1,7 +1,7 @@
 {
     "ethereum_goerli": {
-        "mockMarketAddress": "0x19a191631a6206d57e60D309aF3695471E0AB63d",
-        "safeDelegateProxyAddress": "0xe0e98025d26271042e031ad1658f4a5838a556ab ",
+        "mockMarketAddress": "0xb4f19bC25D2c31A109eb620973B693bE2029147e",
+        "safeDelegateProxyAddress": "0xD3F41eE51AAF27baada9A75F5ECfc282EF7529FF ",
         "safe": {
             "safeAddress": "0x6a5aF5dB86DeD4E1bDa6F97F9d37Fb2de2939424",
             "eoaOwnerAddress": "0x8f058342605F6D819F1033e5e498dEc37a892e81"
@@ -13,8 +13,8 @@
         }
     },
     "optimism_goerli": {
-        "mockMarketAddress": "0x00...",
-        "safeDelegateProxyAddress": "0x00...",
+        "mockMarketAddress": "0x71efD4dD2Aa261F259041122A4249735858AFFEb",
+        "safeDelegateProxyAddress": "0xf57E07F9883DdE92DE7fD7fdD66a21B58980f541",
         "safe": {
             "safeAddress": "0x00...",
             "eoaOwnerAddress": "0x00..."
@@ -26,8 +26,8 @@
         }
     },
     "base_goerli": {
-        "mockMarketAddress": "0x00...",
-        "safeDelegateProxyAddress": "0x00...",
+        "mockMarketAddress": "0x6e4317694661BBd113Fd3907Dd0E34A6acFcac17",
+        "safeDelegateProxyAddress": "0x01550034cAEC5e97B6980294319eb6d02cc8A25D",
         "safe": {
             "safeAddress": "0x00...",
             "eoaOwnerAddress": "0x00..."
@@ -39,8 +39,8 @@
         }
     },
     "zora_goerli": {
-        "mockMarketAddress": "0x00...",
-        "safeDelegateProxyAddress": "0x00...",
+        "mockMarketAddress": "0x01550034cAEC5e97B6980294319eb6d02cc8A25D",
+        "safeDelegateProxyAddress": "0x583F14CE08a95D30E681a5848CC6835992D0386B",
         "safe": {
             "safeAddress": "0x00...",
             "eoaOwnerAddress": "0x00..."
